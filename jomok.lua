@@ -579,7 +579,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         AutoAncientEgg = false,
         AutoJurassicPass = false,
         AutoSellChickens = false,
-        VisualName = false,
+        VisualName = true,
         SellCommon = true,
         SellUncommon = true,
         SellRare = true,
@@ -3001,7 +3001,6 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
 
     AddInfo("User", player.Name, false, false)
     AddInfo("Hub Version", "v2.7", false, false)
-    AddInfo("Plates Grabbed", "0 / 20", true, false)
     if isTrialMode then
         AddInfo("Trial Remaining", "Calculating...", false, true)
     else
