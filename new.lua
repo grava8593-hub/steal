@@ -402,7 +402,7 @@ LaunchKeyUI = function(isExpiredTrial)
     local TitleLabel = Instance.new("TextLabel", Header)
     TitleLabel.Size = UDim2.new(1, 0, 1, 0)
     TitleLabel.BackgroundTransparency = 1
-    TitleLabel.Text = isExpiredTrial and "TRIAL EXPIRED" or "ERDEVA HUB v2.6"
+    TitleLabel.Text = isExpiredTrial and "TRIAL EXPIRED" or "ERDEVA HUB v2.7"
     TitleLabel.TextColor3 = C.Txt
     TitleLabel.TextSize = 13
     TitleLabel.Font = Enum.Font.GothamBold
@@ -1420,6 +1420,16 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         isSellingNow = false
     end
 
+    local function GetArenaCenter()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            local n = obj.Name:lower()
+            if (n:find("arena") or n:find("pen") or n:find("chickenarena")) and obj:IsA("BasePart") then
+                return obj.Position
+            end
+        end
+        return nil
+    end
+
     local wasAncientEggActive = false
     local function FindAncientEgg()
         for _, obj in ipairs(workspace:GetDescendants()) do
@@ -1538,35 +1548,6 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         end)
     end
 
-        if passBtn then
-            ClickGuiButton(passBtn)
-            task.wait(0.4)
-            local jurassicGui = pg:FindFirstChild("JurassicPass", true) or pg:FindFirstChild("EventPass", true)
-            if jurassicGui then
-                for _, b in ipairs(jurassicGui:GetDescendants()) do
-                    if (b:IsA("TextButton") or b:IsA("ImageButton")) and IsVisibleGui(b) then
-                        local bt = ButtonText(b)
-                        if bt:find("claim all") or bt:find("claimall") or bt:find("claim") then
-                            ClickGuiButton(b)
-                        end
-                    end
-                end
-                task.wait(0.3)
-                for _, b in ipairs(jurassicGui:GetDescendants()) do
-                    if (b:IsA("TextButton") or b:IsA("ImageButton")) and IsVisibleGui(b) then
-                        local bt = ButtonText(b)
-                        if bt:find("close") or bt:find("x") or b.Name:lower() == "x" or b.Name:lower() == "close" then
-                            ClickGuiButton(b)
-                            break
-                        end
-                    end
-                end
-            end
-            SafeCall("JurassicPassClaimAll")
-            SafeCall("RF/JurassicPassClaimAll")
-        end
-    end
-
     task.spawn(function()
         while IsRunning do
             pcall(function()
@@ -1680,16 +1661,6 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             task.wait(0.5)
         end
     end)
-
-    local function GetArenaCenter()
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            local n = obj.Name:lower()
-            if (n:find("arena") or n:find("pen") or n:find("chickenarena")) and obj:IsA("BasePart") then
-                return obj.Position
-            end
-        end
-        return nil
-    end
 
     task.spawn(function()
         while IsRunning do
@@ -1841,7 +1812,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     Title.Size = UDim2.new(1, HeaderLogo and -95 or -75, 1, 0)
     Title.Position = UDim2.fromOffset(HeaderLogo and 38 or 12, 0)
     Title.BackgroundTransparency = 1
-    Title.Text = isTrialMode and "ERDEVA HUB [TRIAL 1H]" or "ERDEVA HUB v2.6"
+    Title.Text = isTrialMode and "ERDEVA HUB [TRIAL 1H]" or "ERDEVA HUB v2.7"
     Title.TextColor3 = C.Txt
     Title.TextSize = 13
     Title.Font = Enum.Font.GothamBold
@@ -2579,13 +2550,13 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         if isLive then
             LiveCarriedLabel = r
         end
-        if isTrial then
+        if isTrial) then
             LiveTrialLabel = r
         end
     end
 
     AddInfo("User", player.Name, false, false)
-    AddInfo("Hub Version", "v2.6", false, false)
+    AddInfo("Hub Version", "v2.7", false, false)
     AddInfo("Plates Grabbed", "0 / 20", true, false)
     if isTrialMode then
         AddInfo("Trial Remaining", "Calculating...", false, true)
