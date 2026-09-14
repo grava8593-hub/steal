@@ -1507,43 +1507,63 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end
 
     local function CheckAndClaimJurassicPass()
-        if not CanRunAction("ClaimJurassicPassAction", 15.0) then
+        if not CanRunAction("ClaimJurassicPassAction", 8.0) then
             return
         end
         pcall(function()
-            local remotes = rs:FindFirstChild("Remotes") or rs
-
-            local passClaimAll = remotes:FindFirstChild("RF/JurassicPassClaimAll", true) or remotes:FindFirstChild("JurassicPassClaimAll", true)
-            if passClaimAll and passClaimAll:IsA("RemoteFunction") then
-                passClaimAll:InvokeServer()
-            end
-
-            local passClaim = remotes:FindFirstChild("RF/JurassicPassClaim", true) or remotes:FindFirstChild("JurassicPassClaim", true)
-            if passClaim and passClaim:IsA("RemoteFunction") then
-                for tier = 1, 30 do
-                    task.spawn(function()
-                        pcall(function() passClaim:InvokeServer(tier) end)
+            for _, obj in ipairs(rs:GetDescendants()) do
+                local n = obj.Name:lower()
+                if n:find("jurassic") and n:find("claim") then
+                    pcall(function()
+                        if obj:IsA("RemoteFunction") then
+                            obj:InvokeServer()
+                        elseif obj:IsA("RemoteEvent") then
+                            obj:FireServer()
+                        end
                     end)
                 end
             end
 
-            local questClaim = remotes:FindFirstChild("RF/JurassicQuestClaim", true) or remotes:FindFirstChild("JurassicQuestClaim", true)
-            if questClaim and questClaim:IsA("RemoteFunction") then
-                task.spawn(function()
-                    pcall(function() questClaim:InvokeServer() end)
-                end)
-                for q = 1, 10 do
-                    task.spawn(function()
-                        pcall(function() questClaim:InvokeServer(q) end)
-                    end)
+            local pg = player:FindFirstChild("PlayerGui")
+            if not pg then
+                return
+            end
+
+            local passBtn = nil
+            for _, b in ipairs(pg:GetDescendants()) do
+                if (b:IsA("ImageButton") or b:IsA("TextButton")) and IsVisibleGui(b) then
+                    local bt = ButtonText(b)
+                    if bt:find("pass") and not bt:find("auto") and not bt:find("gamepass") then
+                        passBtn = b
+                        break
+                    end
                 end
             end
 
-            local lootClaim = remotes:FindFirstChild("RF/JurassicLootboxClaim", true) or remotes:FindFirstChild("JurassicLootboxClaim", true)
-            if lootClaim and lootClaim:IsA("RemoteFunction") then
-                task.spawn(function()
-                    pcall(function() lootClaim:InvokeServer() end)
-                end)
+            if passBtn then
+                ClickGuiButton(passBtn)
+                task.wait(0.3)
+                for _, obj in ipairs(pg:GetDescendants()) do
+                    if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and IsVisibleGui(obj) then
+                        local t = ButtonText(obj)
+                        if t:find("claim all") or t:find("claimall") or (t:find("claim") and not t:find("pass") and not t:find("egg")) then
+                            ClickGuiButton(obj)
+                        end
+                    end
+                end
+                task.wait(0.2)
+                for _, obj in ipairs(pg:GetDescendants()) do
+                    if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and IsVisibleGui(obj) then
+                        local t = ButtonText(obj)
+                        if t:find("close") or t:find("x") or obj.Name:lower() == "x" or obj.Name:lower() == "close" then
+                            local parentName = obj.Parent and obj.Parent.Name:lower() or ""
+                            if parentName:find("pass") or parentName:find("event") or parentName:find("jurassic") then
+                                ClickGuiButton(obj)
+                                break
+                            end
+                        end
+                    end
+                end
             end
         end)
     end
