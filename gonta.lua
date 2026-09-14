@@ -1659,61 +1659,46 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end
 
     local function CheckAndClaimJurassicPass()
-        if not CanRunAction("ClaimJurassicPassAction", 8.0) then
+        if not CanRunAction("ClaimJurassicPassAction", 6.0) then
             return
         end
-        pcall(function()
-            local rem = rs:FindFirstChild("Remotes")
-            if not rem then
-                return
-            end
+        task.spawn(function()
+            pcall(function()
+                local rem = rs:FindFirstChild("Remotes")
+                if not rem then
+                    return
+                end
 
-            -- 1. KLAIM SELURUH TIER PASS DI BACKGROUND
-            local passAll = rem:FindFirstChild("JurassicPassClaimAll")
-            if passAll and passAll:IsA("RemoteFunction") then
-                task.spawn(function()
+                -- 1. KLAIM PASS & CRATE DI BACKGROUND
+                local passAll = rem:FindFirstChild("JurassicPassClaimAll")
+                if passAll and passAll:IsA("RemoteFunction") then
                     pcall(function()
                         passAll:InvokeServer()
                     end)
-                end)
-            end
-
-            local passClaim = rem:FindFirstChild("JurassicPassClaim")
-            if passClaim and passClaim:IsA("RemoteFunction") then
-                for t = 1, 30 do
-                    task.spawn(function()
-                        pcall(function()
-                            passClaim:InvokeServer(t)
-                        end)
-                    end)
+                    task.wait(0.1)
                 end
-            end
 
-            -- 2. KLAIM SELURUH REWARD PETI CRATE DI BACKGROUND
-            local lootClaim = rem:FindFirstChild("JurassicLootboxClaim")
-            if lootClaim and lootClaim:IsA("RemoteFunction") then
-                task.spawn(function()
+                local lootClaim = rem:FindFirstChild("JurassicLootboxClaim")
+                if lootClaim and lootClaim:IsA("RemoteFunction") then
                     pcall(function()
                         lootClaim:InvokeServer()
                     end)
-                end)
-            end
+                    task.wait(0.1)
+                end
 
-            local lootOpen = rem:FindFirstChild("JurassicLootboxOpen")
-            if lootOpen and lootOpen:IsA("RemoteFunction") then
-                task.spawn(function()
+                local lootOpen = rem:FindFirstChild("JurassicLootboxOpen")
+                if lootOpen and lootOpen:IsA("RemoteFunction") then
                     pcall(function()
                         lootOpen:InvokeServer()
                     end)
-                end)
-            end
+                    task.wait(0.1)
+                end
 
-            -- 3. KLAIM SELURUH QUEST (HOURLY & DAILY) DI BACKGROUND
-            local questBoard = rem:FindFirstChild("JurassicQuestBoard")
-            local questClaim = rem:FindFirstChild("JurassicQuestClaim")
+                -- 2. KLAIM QUEST VIA DATA SERVER RESMI (SATU PER SATU)
+                local questBoard = rem:FindFirstChild("JurassicQuestBoard")
+                local questClaim = rem:FindFirstChild("JurassicQuestClaim")
 
-            if questBoard and questClaim and questClaim:IsA("RemoteFunction") then
-                task.spawn(function()
+                if questBoard and questClaim and questClaim:IsA("RemoteFunction") then
                     local ok, board = pcall(function()
                         return questBoard:InvokeServer()
                     end)
@@ -1724,102 +1709,51 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                                     pcall(function()
                                         questClaim:InvokeServer(catName, qKey)
                                     end)
-                                    pcall(function()
-                                        questClaim:InvokeServer(qKey)
-                                    end)
+                                    task.wait(0.08)
                                     if type(qInfo) == "table" and qInfo.Id then
                                         pcall(function()
                                             questClaim:InvokeServer(catName, qInfo.Id)
                                         end)
-                                        pcall(function()
-                                            questClaim:InvokeServer(qInfo.Id)
-                                        end)
+                                        task.wait(0.08)
                                     end
                                 end
                             end
-                            pcall(function()
-                                questClaim:InvokeServer(catName)
-                            end)
                         end
                     end
-                end)
-            end
+                end
 
-            if questClaim and questClaim:IsA("RemoteFunction") then
-                local categories = {"daily", "Daily", "hourly", "Hourly"}
-                for _, cat in ipairs(categories) do
-                    for slot = 1, 5 do
-                        task.spawn(function()
+                -- 3. KLAIM BERURUTAN SLOT 1 SAMPAI 5 (DENGAN JEDA AGAR TIDAK DIBLOKIR ROBLOX)
+                if questClaim and questClaim:IsA("RemoteFunction") then
+                    local categories = {"Daily", "daily", "Hourly", "hourly"}
+                    for _, cat in ipairs(categories) do
+                        for slot = 1, 5 do
                             pcall(function()
                                 questClaim:InvokeServer(cat, slot)
                             end)
+                            task.wait(0.08)
+                        end
+                    end
+                    for slot = 1, 5 do
+                        pcall(function()
+                            questClaim:InvokeServer(slot)
                         end)
+                        task.wait(0.08)
                     end
                 end
-                for q = 1, 10 do
-                    task.spawn(function()
-                        pcall(function()
-                            questClaim:InvokeServer(q)
-                        end)
-                    end)
-                end
-                task.spawn(function()
-                    pcall(function()
-                        questClaim:InvokeServer("daily")
-                    end)
-                    pcall(function()
-                        questClaim:InvokeServer("Daily")
-                    end)
-                    pcall(function()
-                        questClaim:InvokeServer("hourly")
-                    end)
-                    pcall(function()
-                        questClaim:InvokeServer("Hourly")
-                    end)
-                    pcall(function()
-                        questClaim:InvokeServer()
-                    end)
-                end)
-            end
 
-            -- 4. KLAIM REMOTE GENERAL CADANGAN
-            local passGeneral = rem:FindFirstChild("PassClaim")
-            if passGeneral and passGeneral:IsA("RemoteFunction") then
-                task.spawn(function()
-                    pcall(function()
-                        passGeneral:InvokeServer()
-                    end)
-                end)
-            end
-
-            local missionClaim = rem:FindFirstChild("MissionClaim")
-            if missionClaim and missionClaim:IsA("RemoteFunction") then
-                task.spawn(function()
-                    pcall(function()
-                        missionClaim:InvokeServer()
-                    end)
-                end)
-                for m = 1, 10 do
-                    task.spawn(function()
-                        pcall(function()
-                            missionClaim:InvokeServer(m)
-                        end)
-                    end)
-                end
-            end
-
-            -- 5. BANTUAN PASIF: KLIK TOMBOL HIJAU JIKA ANDA SEDANG MEMBUKA JENDELANYA
-            local pg = player:FindFirstChild("PlayerGui")
-            if pg then
-                for _, obj in ipairs(pg:GetDescendants()) do
-                    if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and IsVisibleGui(obj) then
-                        local t = ButtonText(obj)
-                        if t == "claim" or t == "claim all" or t:find("claim all") or (t:find("claim") and not t:find("egg") and not t:find("pass")) then
-                            ClickGuiButton(obj)
+                -- 4. BANTUAN PASIF: KLIK TOMBOL HIJAU JIKA ANDA SEDANG MEMBUKA JENDELANYA
+                local pg = player:FindFirstChild("PlayerGui")
+                if pg then
+                    for _, obj in ipairs(pg:GetDescendants()) do
+                        if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and IsVisibleGui(obj) then
+                            local t = ButtonText(obj)
+                            if t == "claim" or t == "claim all" or t:find("claim all") or (t:find("claim") and not t:find("egg") and not t:find("pass")) then
+                                ClickGuiButton(obj)
+                            end
                         end
                     end
                 end
-            end
+            end)
         end)
     end
 
