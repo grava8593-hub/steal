@@ -579,6 +579,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         AutoAncientEgg = false,
         AutoJurassicPass = false,
         AutoSellChickens = false,
+        VisualName = false,
         SellCommon = true,
         SellUncommon = true,
         SellRare = true,
@@ -3007,6 +3008,8 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         AddInfo("License Status", "VIP Premium", false, false)
     end
 
+    AddToggle(InfoPage, "Spoofing Name", "VisualName")
+
     local InfoSpacer = Instance.new("Frame", InfoPage)
     InfoSpacer.Size = UDim2.new(1, 0, 0, 4)
     InfoSpacer.BackgroundTransparency = 1
@@ -3043,6 +3046,79 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                 LiveCarriedLabel.Text = tostring(CurrentBatchScraps) .. " / " .. tostring(Flags.ScrapCapacity or 20)
             end
             task.wait(0.1)
+        end
+    end)
+
+    local originalNameTexts = {}
+    task.spawn(function()
+        while IsRunning do
+            if Flags.VisualName then
+                pcall(function()
+                    local char = GetChar()
+                    local hum = GetHumanoid()
+                    local head = char and char:FindFirstChild("Head")
+                    if hum and hum.DisplayName ~= "ERDEVA" then
+                        hum.DisplayName = "ERDEVA"
+                    end
+                    if char then
+                        for _, obj in ipairs(char:GetDescendants()) do
+                            if obj:IsA("TextLabel") and obj.Name ~= "ErdevaLabel" then
+                                local t = obj.Text
+                                if t:lower():find(player.Name:lower()) or t:lower():find(player.DisplayName:lower()) or obj.Name:lower():find("name") then
+                                    if not originalNameTexts[obj] then
+                                        originalNameTexts[obj] = {
+                                            text = obj.Text,
+                                            color = obj.TextColor3
+                                        }
+                                    end
+                                    obj.Text = "ERDEVA"
+                                    obj.TextColor3 = Color3.fromRGB(235, 45, 65)
+                                end
+                            end
+                        end
+                    end
+                    if head and not head:FindFirstChild("ErdevaVisualTag") then
+                        local bb = Instance.new("BillboardGui")
+                        bb.Name = "ErdevaVisualTag"
+                        bb.Adornee = head
+                        bb.Size = UDim2.fromOffset(130, 26)
+                        bb.StudsOffset = Vector3.new(0, 3.2, 0)
+                        bb.AlwaysOnTop = true
+                        bb.ResetOnSpawn = false
+
+                        local lbl = Instance.new("TextLabel", bb)
+                        lbl.Name = "ErdevaLabel"
+                        lbl.Size = UDim2.new(1, 0, 1, 0)
+                        lbl.BackgroundTransparency = 1
+                        lbl.Text = "ERDEVA"
+                        lbl.TextColor3 = Color3.fromRGB(235, 45, 65)
+                        lbl.TextSize = 14
+                        lbl.Font = Enum.Font.GothamBold
+
+                        local st = Instance.new("UIStroke", lbl)
+                        st.Color = Color3.fromRGB(40, 10, 18)
+                        st.Thickness = 2
+
+                        bb.Parent = head
+                    end
+                end)
+            else
+                pcall(function()
+                    local char = GetChar()
+                    local head = char and char:FindFirstChild("Head")
+                    if head and head:FindFirstChild("ErdevaVisualTag") then
+                        head.ErdevaVisualTag:Destroy()
+                    end
+                    for obj, data in pairs(originalNameTexts) do
+                        if obj and obj.Parent then
+                            obj.Text = data.text
+                            obj.TextColor3 = data.color
+                        end
+                    end
+                    table.clear(originalNameTexts)
+                end)
+            end
+            task.wait(0.5)
         end
     end)
 
