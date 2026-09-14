@@ -1587,50 +1587,109 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         end
     end)
 
+    local cachedAncientEgg = nil
+    local lastAncientEggCheck = 0
+    local cachedEventActive = false
+    local lastEventCheckTime = 0
     local wasAncientEggActive = false
+
     local function FindAncientEgg()
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if (obj:IsA("BasePart") or obj:IsA("Model")) and not obj:IsDescendantOf(player.Character) then
-                local n = obj.Name:lower()
-                if n:find("ancientegg") or n:find("ancient_egg") or n:find("jurassicegg") or n:find("eventegg") then
-                    local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
-                    if p then
-                        return p
+        if cachedAncientEgg and cachedAncientEgg.Parent and (tick() - lastAncientEggCheck < 15) then
+            return cachedAncientEgg
+        end
+
+        local candidateFolders = {workspace:FindFirstChild("Eggs"), workspace:FindFirstChild("Event"), workspace:FindFirstChild("Debris"), workspace}
+        for _, folder in ipairs(candidateFolders) do
+            if folder then
+                for _, obj in ipairs(folder:GetChildren()) do
+                    if not obj:IsDescendantOf(player.Character) then
+                        local n = obj.Name:lower()
+                        if n:find("ancientegg") or n:find("ancient_egg") or n:find("jurassicegg") or n:find("eventegg") then
+                            local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
+                            if p then
+                                cachedAncientEgg = p
+                                lastAncientEggCheck = tick()
+                                return p
+                            end
+                        end
                     end
                 end
             end
         end
+
         local arenaCenter = GetArenaCenter()
         if arenaCenter then
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) and not IsRealScrap(obj) then
-                    local n = obj.Name:lower()
-                    if (n:find("egg") or n:find("shell") or n:find("ancient")) and (obj.Position - arenaCenter).Magnitude <= 30 then
-                        return obj
+            for _, folder in ipairs(candidateFolders) do
+                if folder then
+                    for _, obj in ipairs(folder:GetChildren()) do
+                        if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) and not IsRealScrap(obj) then
+                            local n = obj.Name:lower()
+                            if (n:find("egg") or n:find("shell") or n:find("ancient")) and (obj.Position - arenaCenter).Magnitude <= 35 then
+                                cachedAncientEgg = obj
+                                lastAncientEggCheck = tick()
+                                return obj
+                            end
+                        elseif obj:IsA("Model") and not obj:IsDescendantOf(player.Character) then
+                            local n = obj.Name:lower()
+                            if n:find("egg") or n:find("ancient") then
+                                local p = obj:FindFirstChildWhichIsA("BasePart", true)
+                                if p and (p.Position - arenaCenter).Magnitude <= 35 then
+                                    cachedAncientEgg = p
+                                    lastAncientEggCheck = tick()
+                                    return p
+                                end
+                            end
+                        end
                     end
                 end
             end
         end
-        return nil
+
+        if tick() - lastAncientEggCheck > 5 then
+            lastAncientEggCheck = tick()
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if (obj:IsA("BasePart") or obj:IsA("Model")) and not obj:IsDescendantOf(player.Character) then
+                    local n = obj.Name:lower()
+                    if n:find("ancientegg") or n:find("ancient_egg") or n:find("jurassicegg") or n:find("eventegg") then
+                        local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
+                        if p then
+                            cachedAncientEgg = p
+                            return p
+                        end
+                    end
+                end
+            end
+        end
+
+        return cachedAncientEgg and cachedAncientEgg.Parent and cachedAncientEgg or nil
     end
 
     local function IsAncientEggEventActive()
+        local now = tick()
+        if now - lastEventCheckTime < 2.0 then
+            return cachedEventActive
+        end
+        lastEventCheckTime = now
+
         local pg = player:FindFirstChild("PlayerGui")
         if pg then
             for _, lbl in ipairs(pg:GetDescendants()) do
                 if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
                     local t = lbl.Text:lower()
                     if t:find("ancient egg") or t:find("event ends") or t:find("egg event") or t:find("jurassic egg") then
+                        cachedEventActive = true
                         return true
                     end
                 end
             end
         end
         if workspace:FindFirstChild("AncientEgg") or workspace:FindFirstChild("JurassicEgg") then
+            cachedEventActive = true
             return true
         end
         local egg = FindAncientEgg()
-        return egg ~= nil
+        cachedEventActive = (egg ~= nil)
+        return cachedEventActive
     end
 
     local function FindEventScatteredEgg()
@@ -1639,23 +1698,64 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             return nil
         end
         local best, bestDist = nil, 9999
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) and not IsRealScrap(obj) then
-                local n = obj.Name:lower()
-                local pn = obj.Parent and obj.Parent.Name:lower() or ""
-                if n:find("egg") or pn:find("egg") or n:find("shell") or pn:find("eventegg") then
-                    local ancient = FindAncientEgg()
-                    if not ancient or (obj ~= ancient and not obj:IsDescendantOf(ancient.Parent)) then
-                        local d = FlatDist(root.Position, obj.Position)
-                        if d < 500 and d < bestDist then
-                            best = obj
-                            bestDist = d
+
+        local candidateContainers = {workspace:FindFirstChild("Eggs"), workspace:FindFirstChild("Event"), workspace:FindFirstChild("Debris"), workspace}
+        for _, container in ipairs(candidateContainers) do
+            if container then
+                for _, obj in ipairs(container:GetChildren()) do
+                    local part = obj:IsA("BasePart") and obj or (obj:IsA("Model") and obj:FindFirstChildWhichIsA("BasePart", true))
+                    if part and not part:IsDescendantOf(player.Character) and not IsRealScrap(part) and part.Parent then
+                        local n = part.Name:lower()
+                        local pn = part.Parent.Name:lower()
+                        if n:find("egg") or pn:find("egg") or n:find("shell") or pn:find("eventegg") then
+                            local ancient = FindAncientEgg()
+                            if not ancient or (part ~= ancient and not part:IsDescendantOf(ancient.Parent)) then
+                                local d = FlatDist(root.Position, part.Position)
+                                if d < 500 and d < bestDist then
+                                    best = part
+                                    bestDist = d
+                                end
+                            end
                         end
                     end
                 end
             end
         end
+
+        if not best then
+            for _, obj in ipairs(workspace:GetChildren()) do
+                if obj:IsA("Folder") or obj:IsA("Model") then
+                    local fn = obj.Name:lower()
+                    if fn:find("egg") or fn:find("event") or fn:find("drop") or fn:find("spawn") then
+                        for _, part in ipairs(obj:GetChildren()) do
+                            if part:IsA("BasePart") and not part:IsDescendantOf(player.Character) and not IsRealScrap(part) then
+                                local d = FlatDist(root.Position, part.Position)
+                                if d < 500 and d < bestDist then
+                                    best = part
+                                    bestDist = d
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
         return best
+    end
+
+    local function InteractWithTargetPrompt(instance)
+        if not instance then return end
+        local prompt = instance:FindFirstChildOfClass("ProximityPrompt")
+        if not prompt and instance.Parent then
+            prompt = instance.Parent:FindFirstChildOfClass("ProximityPrompt")
+        end
+        if not prompt then
+            prompt = instance:FindFirstChildWhichIsA("ProximityPrompt", true)
+        end
+        if prompt and prompt.Enabled then
+            TriggerPrompt(prompt)
+        end
     end
 
     local function CheckAndClaimJurassicPass()
@@ -1774,17 +1874,13 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                             FastTouch(egg)
                             WalkTo(egg.Position, 2.5, 3.0)
                             FastTouch(egg)
-                            TriggerNearbyPrompt("egg", 16)
-                            TriggerNearbyPrompt("collect", 16)
-                            TriggerNearbyPrompt("take", 16)
+                            InteractWithTargetPrompt(egg)
 
                             local ancientEgg = FindAncientEgg()
                             if ancientEgg then
                                 WalkTo(ancientEgg.Position, 3.5, 4.0)
                                 FastTouch(ancientEgg)
-                                TriggerNearbyPrompt("feed", 16)
-                                TriggerNearbyPrompt("deposit", 16)
-                                TriggerNearbyPrompt("egg", 16)
+                                InteractWithTargetPrompt(ancientEgg)
                             end
                         else
                             local ancientEgg = FindAncientEgg()
@@ -1798,12 +1894,13 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                     else
                         if wasAncientEggActive then
                             wasAncientEggActive = false
+                            cachedAncientEgg = nil
                             DoRecycleAtBase()
                         end
                     end
                 end
             end)
-            task.wait(0.2)
+            task.wait(0.4)
         end
     end)
 
