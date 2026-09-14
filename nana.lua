@@ -585,12 +585,8 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         SellMythic = false,
         SellCosmic = false,
         SellSecret = false,
-        AutoJurassicPass = false,
-        AutoJurassicQuests = false,
-        AutoJurassicLootbox = false,
-        AutoOfflineDice = false,
-        AutoDailyClaim = false,
-        AutoCraftCharms = false
+        AutoAncientEgg = false,
+        AutoJurassicPass = false
     }
 
     local LOCKED_RECYCLER_POS = nil
@@ -1424,6 +1420,137 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         isSellingNow = false
     end
 
+    local wasAncientEggActive = false
+    local function FindAncientEgg()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if (obj:IsA("BasePart") or obj:IsA("Model")) and not obj:IsDescendantOf(player.Character) then
+                local n = obj.Name:lower()
+                if n:find("ancientegg") or n:find("ancient_egg") or n:find("jurassicegg") or n:find("eventegg") then
+                    local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
+                    if p then
+                        return p
+                    end
+                end
+            end
+        end
+        local arenaCenter = GetArenaCenter()
+        if arenaCenter then
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) and not IsRealScrap(obj) then
+                    local n = obj.Name:lower()
+                    if (n:find("egg") or n:find("shell") or n:find("ancient")) and (obj.Position - arenaCenter).Magnitude <= 30 then
+                        return obj
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+    local function IsAncientEggEventActive()
+        local pg = player:FindFirstChild("PlayerGui")
+        if pg then
+            for _, lbl in ipairs(pg:GetDescendants()) do
+                if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
+                    local t = lbl.Text:lower()
+                    if (t:find("ancient egg") and t:find("live")) or t:find("bursts in") or (t:find("growth") and t:find("/ 5")) then
+                        return true
+                    end
+                end
+            end
+        end
+        if FindAncientEgg() then
+            return true
+        end
+        return false
+    end
+
+    local function FindEventScatteredEgg()
+        local root = GetRoot()
+        if not root then
+            return nil
+        end
+        local arenaCenter = GetArenaCenter()
+        local best, bestDist = nil, 9999
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) and obj.Parent then
+                local n = obj.Name:lower()
+                local pn = obj.Parent.Name:lower()
+                local isCandidate = false
+                if (n:find("ancient") or n:find("event") or n:find("jurassic")) and n:find("egg") then
+                    isCandidate = true
+                elseif (n == "egg" or n:find("egg_") or pn:find("event") or pn:find("jurassic")) and not pn:find("nest") and not pn:find("incubator") and not pn:find("plot") and not pn:find("coop") then
+                    if arenaCenter and (obj.Position - arenaCenter).Magnitude > 25 and (obj.Position - arenaCenter).Magnitude < 400 then
+                        isCandidate = true
+                    end
+                end
+                if isCandidate then
+                    local d = (root.Position - obj.Position).Magnitude
+                    if d < bestDist then
+                        best = obj
+                        bestDist = d
+                    end
+                end
+            end
+        end
+        return best
+    end
+
+    local function CheckAndClaimJurassicPass()
+        if not CanRunAction("ClaimJurassicPassAction", 8.0) then
+            return
+        end
+        local pg = player:FindFirstChild("PlayerGui")
+        if not pg then
+            return
+        end
+        local passBtn = nil
+        for _, b in ipairs(pg:GetDescendants()) do
+            if (b:IsA("ImageButton") or b:IsA("TextButton")) and IsVisibleGui(b) then
+                local t = ButtonText(b)
+                if t:find("pass") or b.Name:lower():find("pass") or b.Name:lower():find("jurassic") then
+                    for _, child in ipairs(b:GetDescendants()) do
+                        if child:IsA("TextLabel") and IsVisibleGui(child) and child.Text:find("!") then
+                            passBtn = b
+                            break
+                        end
+                    end
+                end
+            end
+            if passBtn then
+                break
+            end
+        end
+
+        if passBtn then
+            ClickGuiButton(passBtn)
+            task.wait(0.4)
+            local jurassicGui = pg:FindFirstChild("JurassicPass", true) or pg:FindFirstChild("EventPass", true)
+            if jurassicGui then
+                for _, b in ipairs(jurassicGui:GetDescendants()) do
+                    if (b:IsA("TextButton") or b:IsA("ImageButton")) and IsVisibleGui(b) then
+                        local bt = ButtonText(b)
+                        if bt:find("claim all") or bt:find("claimall") or bt:find("claim") then
+                            ClickGuiButton(b)
+                        end
+                    end
+                end
+                task.wait(0.3)
+                for _, b in ipairs(jurassicGui:GetDescendants()) do
+                    if (b:IsA("TextButton") or b:IsA("ImageButton")) and IsVisibleGui(b) then
+                        local bt = ButtonText(b)
+                        if bt:find("close") or bt:find("x") or b.Name:lower() == "x" or b.Name:lower() == "close" then
+                            ClickGuiButton(b)
+                            break
+                        end
+                    end
+                end
+            end
+            SafeCall("JurassicPassClaimAll")
+            SafeCall("RF/JurassicPassClaimAll")
+        end
+    end
+
     task.spawn(function()
         while IsRunning do
             pcall(function()
@@ -1553,6 +1680,11 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             pcall(function()
                 RunEventCheck()
 
+                if Flags.AutoAncientEgg and IsAncientEggEventActive() then
+                    task.wait(0.25)
+                    return
+                end
+
                 local shouldFarm = Flags.AutoGrabScraps or Flags.AutoRecycleScrap or Flags.AutoRebirth
                 if not shouldFarm then
                     task.wait(0.3)
@@ -1594,36 +1726,49 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     task.spawn(function()
         while IsRunning do
             pcall(function()
-                if Flags.AutoJurassicPass and CanRunAction("JurassicPassClaimAction", 20.0) then
-                    SafeCall("JurassicPassClaimAll")
-                    SafeCall("RF/JurassicPassClaimAll")
+                if Flags.AutoJurassicPass then
+                    CheckAndClaimJurassicPass()
                 end
-                if Flags.AutoJurassicQuests and CanRunAction("JurassicQuestClaimAction", 15.0) then
-                    SafeCall("JurassicQuestClaim")
-                    SafeCall("RF/JurassicQuestClaim")
-                end
-                if Flags.AutoJurassicLootbox and CanRunAction("JurassicLootboxAction", 15.0) then
-                    SafeCall("JurassicLootboxClaim")
-                    SafeCall("RF/JurassicLootboxClaim")
-                    SafeCall("JurassicLootboxOpen")
-                    SafeCall("RF/JurassicLootboxOpen")
-                end
-                if Flags.AutoOfflineDice and CanRunAction("OfflineDiceRollAction", 30.0) then
-                    SafeCall("OfflineDiceRoll")
-                    SafeCall("RF/OfflineDiceRoll")
-                end
-                if Flags.AutoDailyClaim and CanRunAction("DailySocialClaimAction", 60.0) then
-                    SafeCall("DailyClaim")
-                    SafeCall("RF/DailyClaim")
-                    SafeCall("SocialClaim")
-                    SafeCall("RF/SocialClaim")
-                end
-                if Flags.AutoCraftCharms and CanRunAction("AutoCraftCharmsAction", 10.0) then
-                    SafeCall("AutoCraftCharms")
-                    SafeCall("RF/AutoCraftCharms")
+
+                if Flags.AutoAncientEgg then
+                    local isActive = IsAncientEggEventActive()
+                    if isActive then
+                        wasAncientEggActive = true
+                        local egg = FindEventScatteredEgg()
+                        if egg then
+                            FastTouch(egg)
+                            WalkTo(egg.Position, 2.5, 3.0)
+                            FastTouch(egg)
+                            TriggerNearbyPrompt("egg", 16)
+                            TriggerNearbyPrompt("collect", 16)
+                            TriggerNearbyPrompt("take", 16)
+
+                            local ancientEgg = FindAncientEgg()
+                            if ancientEgg then
+                                WalkTo(ancientEgg.Position, 3.5, 4.0)
+                                FastTouch(ancientEgg)
+                                TriggerNearbyPrompt("feed", 16)
+                                TriggerNearbyPrompt("deposit", 16)
+                                TriggerNearbyPrompt("egg", 16)
+                            end
+                        else
+                            local ancientEgg = FindAncientEgg()
+                            if ancientEgg then
+                                local root = GetRoot()
+                                if root and (root.Position - ancientEgg.Position).Magnitude > 30 then
+                                    WalkTo(ancientEgg.Position, 3.0, 15.0)
+                                end
+                            end
+                        end
+                    else
+                        if wasAncientEggActive then
+                            wasAncientEggActive = false
+                            DoRecycleAtBase()
+                        end
+                    end
                 end
             end)
-            task.wait(2.0)
+            task.wait(0.2)
         end
     end)
 
@@ -2383,17 +2528,8 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     AddBadge(EventsPage, "Auto Golden Goose", "COMING SOON")
     AddBadge(EventsPage, "Auto Chicken Boss", "COMING SOON")
     AddBadge(EventsPage, "Auto Admin Abuse", "COMING SOON")
+    AddToggle(EventsPage, "Auto Ancient Egg", "AutoAncientEgg")
     AddToggle(EventsPage, "Auto Jurassic Pass", "AutoJurassicPass")
-    AddToggle(EventsPage, "Auto Jurassic Quests", "AutoJurassicQuests")
-    AddToggle(EventsPage, "Auto Jurassic Lootbox", "AutoJurassicLootbox")
-    AddToggle(EventsPage, "Auto Offline Dice", "AutoOfflineDice")
-    AddToggle(EventsPage, "Auto Daily Claim", "AutoDailyClaim")
-    AddToggle(EventsPage, "Auto Craft Charms", "AutoCraftCharms")
-    AddButton(EventsPage, "Roll Charms", function()
-        SafeCall("RollCharms")
-        SafeCall("RF/RollCharms")
-        Notify("ERDEVA HUB", "Rolled Charms", 2)
-    end)
 
     local LiveCarriedLabel = nil
     local LiveTrialLabel = nil
