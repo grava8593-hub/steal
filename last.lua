@@ -1659,7 +1659,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end
 
     local function CheckAndClaimJurassicPass()
-        if not CanRunAction("ClaimJurassicPassAction", 5.0) then
+        if not CanRunAction("ClaimJurassicPassAction", 4.0) then
             return
         end
         task.spawn(function()
@@ -1668,58 +1668,88 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                 if rem then
                     local passAll = rem:FindFirstChild("JurassicPassClaimAll")
                     if passAll and passAll:IsA("RemoteFunction") then
-                        pcall(function()
-                            passAll:InvokeServer()
-                        end)
-                        task.wait(0.08)
+                        pcall(function() passAll:InvokeServer() end)
                     end
-
                     local lootClaim = rem:FindFirstChild("JurassicLootboxClaim")
                     if lootClaim and lootClaim:IsA("RemoteFunction") then
-                        pcall(function()
-                            lootClaim:InvokeServer()
-                        end)
-                        task.wait(0.08)
+                        pcall(function() lootClaim:InvokeServer() end)
                     end
-
                     local lootOpen = rem:FindFirstChild("JurassicLootboxOpen")
                     if lootOpen and lootOpen:IsA("RemoteFunction") then
-                        pcall(function()
-                            lootOpen:InvokeServer()
-                        end)
-                        task.wait(0.08)
-                    end
-
-                    local questClaim = rem:FindFirstChild("JurassicQuestClaim")
-                    if questClaim and questClaim:IsA("RemoteFunction") then
-                        local categories = {"Daily", "daily", "Hourly", "hourly"}
-                        for _, cat in ipairs(categories) do
-                            for slot = 1, 5 do
-                                pcall(function()
-                                    questClaim:InvokeServer(cat, slot)
-                                end)
-                                task.wait(0.06)
-                            end
-                        end
-                        for slot = 1, 5 do
-                            pcall(function()
-                                questClaim:InvokeServer(slot)
-                            end)
-                            task.wait(0.06)
-                        end
+                        pcall(function() lootOpen:InvokeServer() end)
                     end
                 end
 
                 local pg = player:FindFirstChild("PlayerGui")
-                if pg then
-                    for _, obj in ipairs(pg:GetDescendants()) do
-                        if obj:IsA("TextButton") or obj:IsA("ImageButton") then
-                            local t = ButtonText(obj)
-                            if t == "claim" or t == "claim all" or t:find("claim all") or (t:find("claim") and not t:find("egg") and not t:find("pass")) then
-                                pcall(function()
-                                    ClickGuiButton(obj)
-                                end)
-                                task.wait(0.05)
+                if not pg then return end
+
+                local rail = pg:FindFirstChild("ArenaSideRail")
+                local passBtn = rail and (rail:FindFirstChild("Pass", true) or rail:FindFirstChild("JurassicPass", true) or rail:FindFirstChild("Jurassic", true))
+                if not passBtn and rail then
+                    for _, b in ipairs(rail:GetDescendants()) do
+                        if (b:IsA("TextButton") or b:IsA("ImageButton")) and ButtonText(b):find("pass") and not ButtonText(b):find("auto") then
+                            passBtn = b
+                            break
+                        end
+                    end
+                end
+
+                local hasExclamation = false
+                if passBtn then
+                    for _, ch in ipairs(passBtn:GetDescendants()) do
+                        if (ch:IsA("TextLabel") and ch.Text:find("!")) or (ch:IsA("GuiObject") and (ch.Name:lower():find("alert") or ch.Name:lower():find("notify") or ch.Name:lower():find("badge") or ch.Name:lower():find("exclamation") or ch.Name:lower():find("dot"))) then
+                            hasExclamation = true
+                            break
+                        end
+                    end
+                end
+
+                local passGui = pg:FindFirstChild("JurassicPass") or pg:FindFirstChild("Pass")
+
+                if hasExclamation or (passGui and IsVisibleGui(passGui)) then
+                    if passBtn and not (passGui and IsVisibleGui(passGui)) then
+                        ClickGuiButton(passBtn)
+                        task.wait(0.2)
+                        passGui = pg:FindFirstChild("JurassicPass") or pg:FindFirstChild("Pass")
+                    end
+
+                    if passGui then
+                        for _, obj in ipairs(passGui:GetDescendants()) do
+                            if obj:IsA("TextButton") or obj:IsA("ImageButton") then
+                                local t = ButtonText(obj)
+                                if t:find("claim") then
+                                    pcall(function() ClickGuiButton(obj) end)
+                                    task.wait(0.04)
+                                end
+                            end
+                        end
+
+                        for _, tabName in ipairs({"quests", "hourly", "daily", "crate", "pass"}) do
+                            for _, btn in ipairs(passGui:GetDescendants()) do
+                                if (btn:IsA("TextButton") or btn:IsA("ImageButton")) and ButtonText(btn):find(tabName) then
+                                    ClickGuiButton(btn)
+                                    task.wait(0.04)
+                                    for _, obj in ipairs(passGui:GetDescendants()) do
+                                        if obj:IsA("TextButton") or obj:IsA("ImageButton") then
+                                            local t = ButtonText(obj)
+                                            if t:find("claim") then
+                                                pcall(function() ClickGuiButton(obj) end)
+                                                task.wait(0.04)
+                                            end
+                                        end
+                                    end
+                                    break
+                                end
+                            end
+                        end
+
+                        for _, b in ipairs(passGui:GetDescendants()) do
+                            if (b:IsA("TextButton") or b:IsA("ImageButton")) then
+                                local bt = ButtonText(b)
+                                if bt:find("close") or bt:find("x") or b.Name:lower() == "x" or b.Name:lower() == "close" or b.Name:lower():find("close") or b.Name:lower():find("exit") then
+                                    ClickGuiButton(b)
+                                    break
+                                end
                             end
                         end
                     end
