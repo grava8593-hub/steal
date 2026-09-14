@@ -402,7 +402,7 @@ LaunchKeyUI = function(isExpiredTrial)
     local TitleLabel = Instance.new("TextLabel", Header)
     TitleLabel.Size = UDim2.new(1, 0, 1, 0)
     TitleLabel.BackgroundTransparency = 1
-    TitleLabel.Text = isExpiredTrial and "TRIAL EXPIRED" or "ERDEVA HUB v2.7"
+    TitleLabel.Text = isExpiredTrial and "TRIAL EXPIRED" or "ERDEVA HUB v2.6"
     TitleLabel.TextColor3 = C.Txt
     TitleLabel.TextSize = 13
     TitleLabel.Font = Enum.Font.GothamBold
@@ -576,6 +576,8 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         AutoBypassPopups = false,
         AutoStartChaos = false,
         AutoUFO = false,
+        AutoAncientEgg = false,
+        AutoJurassicPass = false,
         AutoSellChickens = false,
         SellCommon = true,
         SellUncommon = true,
@@ -584,9 +586,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         SellLegendary = false,
         SellMythic = false,
         SellCosmic = false,
-        SellSecret = false,
-        AutoAncientEgg = false,
-        AutoJurassicPass = false
+        SellSecret = false
     }
 
     local LOCKED_RECYCLER_POS = nil
@@ -1106,7 +1106,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             for _, obj in ipairs(nestEggs:GetDescendants()) do
                 if obj:IsA("ProximityPrompt") and obj.Enabled then
                     local p = obj.Parent and obj.Parent:IsA("BasePart") and obj.Parent or
-                                 obj:FindFirstAncestorWhichIsA("BasePart")
+                                  obj:FindFirstAncestorWhichIsA("BasePart")
                     if p and (root.Position - p.Position).Magnitude <= 24 then
                         TriggerPrompt(obj)
                     end
@@ -1420,154 +1420,6 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         isSellingNow = false
     end
 
-    local function GetArenaCenter()
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            local n = obj.Name:lower()
-            if (n:find("arena") or n:find("pen") or n:find("chickenarena")) and obj:IsA("BasePart") then
-                return obj.Position
-            end
-        end
-        return nil
-    end
-
-    local wasAncientEggActive = false
-    local function FindAncientEgg()
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if (obj:IsA("BasePart") or obj:IsA("Model")) and not obj:IsDescendantOf(player.Character) then
-                local n = obj.Name:lower()
-                if n:find("ancientegg") or n:find("ancient_egg") or n:find("jurassicegg") or n:find("eventegg") then
-                    local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
-                    if p then
-                        return p
-                    end
-                end
-            end
-        end
-        local arenaCenter = GetArenaCenter()
-        if arenaCenter then
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) and not IsRealScrap(obj) then
-                    local n = obj.Name:lower()
-                    if (n:find("egg") or n:find("shell") or n:find("ancient")) and (obj.Position - arenaCenter).Magnitude <= 30 then
-                        return obj
-                    end
-                end
-            end
-        end
-        return nil
-    end
-
-    local function IsAncientEggEventActive()
-        local pg = player:FindFirstChild("PlayerGui")
-        if pg then
-            for _, lbl in ipairs(pg:GetDescendants()) do
-                if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
-                    local t = lbl.Text:lower()
-                    if (t:find("ancient egg") and t:find("live")) or t:find("bursts in") or (t:find("growth") and t:find("/ 5")) then
-                        return true
-                    end
-                end
-            end
-        end
-        if FindAncientEgg() then
-            return true
-        end
-        return false
-    end
-
-    local function FindEventScatteredEgg()
-        local root = GetRoot()
-        if not root then
-            return nil
-        end
-        local arenaCenter = GetArenaCenter()
-        local best, bestDist = nil, 9999
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) and obj.Parent then
-                local n = obj.Name:lower()
-                local pn = obj.Parent.Name:lower()
-                local isCandidate = false
-                if (n:find("ancient") or n:find("event") or n:find("jurassic")) and n:find("egg") then
-                    isCandidate = true
-                elseif (n == "egg" or n:find("egg_") or pn:find("event") or pn:find("jurassic")) and not pn:find("nest") and not pn:find("incubator") and not pn:find("plot") and not pn:find("coop") then
-                    if arenaCenter and (obj.Position - arenaCenter).Magnitude > 25 and (obj.Position - arenaCenter).Magnitude < 400 then
-                        isCandidate = true
-                    end
-                end
-                if isCandidate then
-                    local d = (root.Position - obj.Position).Magnitude
-                    if d < bestDist then
-                        best = obj
-                        bestDist = d
-                    end
-                end
-            end
-        end
-        return best
-    end
-
-    local function CheckAndClaimJurassicPass()
-        if not CanRunAction("ClaimJurassicPassAction", 8.0) then
-            return
-        end
-        pcall(function()
-            for _, obj in ipairs(rs:GetDescendants()) do
-                local n = obj.Name:lower()
-                if n:find("jurassic") and n:find("claim") then
-                    pcall(function()
-                        if obj:IsA("RemoteFunction") then
-                            obj:InvokeServer()
-                        elseif obj:IsA("RemoteEvent") then
-                            obj:FireServer()
-                        end
-                    end)
-                end
-            end
-
-            local pg = player:FindFirstChild("PlayerGui")
-            if not pg then
-                return
-            end
-
-            local passBtn = nil
-            for _, b in ipairs(pg:GetDescendants()) do
-                if (b:IsA("ImageButton") or b:IsA("TextButton")) and IsVisibleGui(b) then
-                    local bt = ButtonText(b)
-                    if bt:find("pass") and not bt:find("auto") and not bt:find("gamepass") then
-                        passBtn = b
-                        break
-                    end
-                end
-            end
-
-            if passBtn then
-                ClickGuiButton(passBtn)
-                task.wait(0.3)
-                for _, obj in ipairs(pg:GetDescendants()) do
-                    if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and IsVisibleGui(obj) then
-                        local t = ButtonText(obj)
-                        if t:find("claim all") or t:find("claimall") or (t:find("claim") and not t:find("pass") and not t:find("egg")) then
-                            ClickGuiButton(obj)
-                        end
-                    end
-                end
-                task.wait(0.2)
-                for _, obj in ipairs(pg:GetDescendants()) do
-                    if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and IsVisibleGui(obj) then
-                        local t = ButtonText(obj)
-                        if t:find("close") or t:find("x") or obj.Name:lower() == "x" or obj.Name:lower() == "close" then
-                            local parentName = obj.Parent and obj.Parent.Name:lower() or ""
-                            if parentName:find("pass") or parentName:find("event") or parentName:find("jurassic") then
-                                ClickGuiButton(obj)
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-        end)
-    end
-
     task.spawn(function()
         while IsRunning do
             pcall(function()
@@ -1682,15 +1534,20 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         end
     end)
 
+    local function GetArenaCenter()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            local n = obj.Name:lower()
+            if (n:find("arena") or n:find("pen") or n:find("chickenarena")) and obj:IsA("BasePart") then
+                return obj.Position
+            end
+        end
+        return nil
+    end
+
     task.spawn(function()
         while IsRunning do
             pcall(function()
                 RunEventCheck()
-
-                if Flags.AutoAncientEgg and IsAncientEggEventActive() then
-                    task.wait(0.25)
-                    return
-                end
 
                 local shouldFarm = Flags.AutoGrabScraps or Flags.AutoRecycleScrap or Flags.AutoRebirth
                 if not shouldFarm then
@@ -1729,6 +1586,176 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             task.wait(0.02)
         end
     end)
+
+    local wasAncientEggActive = false
+    local function FindAncientEgg()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if (obj:IsA("BasePart") or obj:IsA("Model")) and not obj:IsDescendantOf(player.Character) then
+                local n = obj.Name:lower()
+                if n:find("ancientegg") or n:find("ancient_egg") or n:find("jurassicegg") or n:find("eventegg") then
+                    local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
+                    if p then
+                        return p
+                    end
+                end
+            end
+        end
+        local arenaCenter = GetArenaCenter()
+        if arenaCenter then
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) and not IsRealScrap(obj) then
+                    local n = obj.Name:lower()
+                    if (n:find("egg") or n:find("shell") or n:find("ancient")) and (obj.Position - arenaCenter).Magnitude <= 30 then
+                        return obj
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+    local function IsAncientEggEventActive()
+        local pg = player:FindFirstChild("PlayerGui")
+        if pg then
+            for _, lbl in ipairs(pg:GetDescendants()) do
+                if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
+                    local t = lbl.Text:lower()
+                    if t:find("ancient egg") or t:find("event ends") or t:find("egg event") or t:find("jurassic egg") then
+                        return true
+                    end
+                end
+            end
+        end
+        if workspace:FindFirstChild("AncientEgg") or workspace:FindFirstChild("JurassicEgg") then
+            return true
+        end
+        local egg = FindAncientEgg()
+        return egg ~= nil
+    end
+
+    local function FindEventScatteredEgg()
+        local root = GetRoot()
+        if not root then
+            return nil
+        end
+        local best, bestDist = nil, 9999
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) and not IsRealScrap(obj) then
+                local n = obj.Name:lower()
+                local pn = obj.Parent and obj.Parent.Name:lower() or ""
+                if n:find("egg") or pn:find("egg") or n:find("shell") or pn:find("eventegg") then
+                    local ancient = FindAncientEgg()
+                    if not ancient or (obj ~= ancient and not obj:IsDescendantOf(ancient.Parent)) then
+                        local d = FlatDist(root.Position, obj.Position)
+                        if d < 500 and d < bestDist then
+                            best = obj
+                            bestDist = d
+                        end
+                    end
+                end
+            end
+        end
+        return best
+    end
+
+    local function CheckAndClaimJurassicPass()
+        if not CanRunAction("ClaimJurassicPassAction", 10.0) then
+            return
+        end
+        pcall(function()
+            local rem = rs:FindFirstChild("Remotes")
+            if not rem then
+                return
+            end
+
+            local passAll = rem:FindFirstChild("JurassicPassClaimAll")
+            if passAll and passAll:IsA("RemoteFunction") then
+                pcall(function()
+                    passAll:InvokeServer()
+                end)
+            end
+
+            local passClaim = rem:FindFirstChild("JurassicPassClaim")
+            if passClaim and passClaim:IsA("RemoteFunction") then
+                for t = 1, 30 do
+                    task.spawn(function()
+                        pcall(function()
+                            passClaim:InvokeServer(t)
+                        end)
+                    end)
+                end
+            end
+
+            local questBoard = rem:FindFirstChild("JurassicQuestBoard")
+            if questBoard and questBoard:IsA("RemoteFunction") then
+                task.spawn(function()
+                    local ok, quests = pcall(function()
+                        return questBoard:InvokeServer()
+                    end)
+                    if ok and type(quests) == "table" then
+                        local qClaim = rem:FindFirstChild("JurassicQuestClaim")
+                        if qClaim and qClaim:IsA("RemoteFunction") then
+                            for qId, qData in pairs(quests) do
+                                pcall(function()
+                                    qClaim:InvokeServer(qId)
+                                end)
+                            end
+                        end
+                    end
+                end)
+            end
+
+            local questClaim = rem:FindFirstChild("JurassicQuestClaim")
+            if questClaim and questClaim:IsA("RemoteFunction") then
+                task.spawn(function()
+                    pcall(function()
+                        questClaim:InvokeServer()
+                    end)
+                end)
+                for q = 1, 10 do
+                    task.spawn(function()
+                        pcall(function()
+                            questClaim:InvokeServer(q)
+                        end)
+                    end)
+                end
+            end
+
+            local lootClaim = rem:FindFirstChild("JurassicLootboxClaim")
+            if lootClaim and lootClaim:IsA("RemoteFunction") then
+                task.spawn(function()
+                    pcall(function()
+                        lootClaim:InvokeServer()
+                    end)
+                end)
+            end
+
+            local passGeneral = rem:FindFirstChild("PassClaim")
+            if passGeneral and passGeneral:IsA("RemoteFunction") then
+                task.spawn(function()
+                    pcall(function()
+                        passGeneral:InvokeServer()
+                    end)
+                end)
+            end
+
+            local missionClaim = rem:FindFirstChild("MissionClaim")
+            if missionClaim and missionClaim:IsA("RemoteFunction") then
+                task.spawn(function()
+                    pcall(function()
+                        missionClaim:InvokeServer()
+                    end)
+                end)
+                for m = 1, 10 do
+                    task.spawn(function()
+                        pcall(function()
+                            missionClaim:InvokeServer(m)
+                        end)
+                    end)
+                end
+            end
+        end)
+    end
 
     task.spawn(function()
         while IsRunning do
@@ -1832,7 +1859,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     Title.Size = UDim2.new(1, HeaderLogo and -95 or -75, 1, 0)
     Title.Position = UDim2.fromOffset(HeaderLogo and 38 or 12, 0)
     Title.BackgroundTransparency = 1
-    Title.Text = isTrialMode and "ERDEVA HUB [TRIAL 1H]" or "ERDEVA HUB v2.7"
+    Title.Text = isTrialMode and "ERDEVA HUB [TRIAL 1H]" or "ERDEVA HUB v2.6"
     Title.TextColor3 = C.Txt
     Title.TextSize = 13
     Title.Font = Enum.Font.GothamBold
@@ -2534,6 +2561,9 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     AddToggle(EventsPage, "Auto UFO", "AutoUFO")
     AddToggle(EventsPage, "Auto Ancient Egg", "AutoAncientEgg")
     AddToggle(EventsPage, "Auto Jurassic Pass", "AutoJurassicPass")
+    AddBadge(EventsPage, "Auto Golden Goose", "COMING SOON")
+    AddBadge(EventsPage, "Auto Chicken Boss", "COMING SOON")
+    AddBadge(EventsPage, "Auto Admin Abuse", "COMING SOON")
 
     local LiveCarriedLabel = nil
     local LiveTrialLabel = nil
@@ -2576,7 +2606,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end
 
     AddInfo("User", player.Name, false, false)
-    AddInfo("Hub Version", "v2.7", false, false)
+    AddInfo("Hub Version", "v2.6", false, false)
     AddInfo("Plates Grabbed", "0 / 20", true, false)
     if isTrialMode then
         AddInfo("Trial Remaining", "Calculating...", false, true)
