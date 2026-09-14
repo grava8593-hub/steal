@@ -1765,24 +1765,29 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
 
         task.spawn(function()
             pcall(function()
-                local rem = rs:FindFirstChild("Remotes")
-                if rem then
-                    local passAll = rem:FindFirstChild("JurassicPassClaimAll")
-                    if passAll and passAll:IsA("RemoteFunction") then
-                        pcall(function() passAll:InvokeServer() end)
-                    end
-                    local lootClaim = rem:FindFirstChild("JurassicLootboxClaim")
-                    if lootClaim and lootClaim:IsA("RemoteFunction") then
-                        pcall(function() lootClaim:InvokeServer() end)
-                    end
-                    local lootOpen = rem:FindFirstChild("JurassicLootboxOpen")
-                    if lootOpen and lootOpen:IsA("RemoteFunction") then
-                        pcall(function() lootOpen:InvokeServer() end)
+                local pg = player:FindFirstChild("PlayerGui")
+                if not pg then return end
+
+                local rail = pg:FindFirstChild("ArenaSideRail")
+                local passBtn = rail and (rail:FindFirstChild("Pass", true) or rail:FindFirstChild("JurassicPass", true) or rail:FindFirstChild("Jurassic", true))
+                if not passBtn and rail then
+                    for _, b in ipairs(rail:GetDescendants()) do
+                        if (b:IsA("TextButton") or b:IsA("ImageButton")) and ButtonText(b):find("pass") and not ButtonText(b):find("auto") then
+                            passBtn = b
+                            break
+                        end
                     end
                 end
 
-                local pg = player:FindFirstChild("PlayerGui")
-                if not pg then return end
+                local hasExclamation = false
+                if passBtn and IsVisibleGui(passBtn) then
+                    for _, ch in ipairs(passBtn:GetDescendants()) do
+                        if ch:IsA("TextLabel") and IsVisibleGui(ch) and ch.Text:find("!") then
+                            hasExclamation = true
+                            break
+                        end
+                    end
+                end
 
                 local function FindJurassicContainer()
                     for _, name in ipairs({"JurassicPass", "Pass", "EventPass", "SeasonPass", "PassGui"}) do
@@ -1809,37 +1814,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                     return nil
                 end
 
-                local rail = pg:FindFirstChild("ArenaSideRail")
-                local passBtn = rail and (rail:FindFirstChild("Pass", true) or rail:FindFirstChild("JurassicPass", true) or rail:FindFirstChild("Jurassic", true))
-                if not passBtn and rail then
-                    for _, b in ipairs(rail:GetDescendants()) do
-                        if (b:IsA("TextButton") or b:IsA("ImageButton")) and ButtonText(b):find("pass") and not ButtonText(b):find("auto") then
-                            passBtn = b
-                            break
-                        end
-                    end
-                end
-
                 local passGui = FindJurassicContainer()
-
-                local hasExclamation = false
-                if passBtn then
-                    for _, ch in ipairs(passBtn:GetDescendants()) do
-                        if (ch:IsA("TextLabel") and ch.Text:find("!")) or (ch:IsA("GuiObject") and (ch.Name:lower():find("alert") or ch.Name:lower():find("badge") or ch.Name:lower():find("exclamation") or ch.Name:lower():find("dot"))) then
-                            hasExclamation = true
-                            break
-                        end
-                    end
-                end
-
-                if passGui then
-                    for _, ch in ipairs(passGui:GetDescendants()) do
-                        if ch:IsA("TextLabel") and IsVisibleGui(ch) and ch.Text:find("!") then
-                            hasExclamation = true
-                            break
-                        end
-                    end
-                end
 
                 local function ClosePassGui(container)
                     if not container then return end
@@ -1856,13 +1831,27 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                     end
                 end
 
-                if passGui and not hasExclamation then
-                    ClosePassGui(passGui)
+                if not hasExclamation then
+                    if passGui then
+                        ClosePassGui(passGui)
+                    end
                     return
                 end
 
-                if not hasExclamation and not passGui then
-                    return
+                local rem = rs:FindFirstChild("Remotes")
+                if rem then
+                    local passAll = rem:FindFirstChild("JurassicPassClaimAll")
+                    if passAll and passAll:IsA("RemoteFunction") then
+                        pcall(function() passAll:InvokeServer() end)
+                    end
+                    local lootClaim = rem:FindFirstChild("JurassicLootboxClaim")
+                    if lootClaim and lootClaim:IsA("RemoteFunction") then
+                        pcall(function() lootClaim:InvokeServer() end)
+                    end
+                    local lootOpen = rem:FindFirstChild("JurassicLootboxOpen")
+                    if lootOpen and lootOpen:IsA("RemoteFunction") then
+                        pcall(function() lootOpen:InvokeServer() end)
+                    end
                 end
 
                 if not passGui and passBtn then
