@@ -1497,30 +1497,46 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end
 
     local function CheckAndClaimJurassicPass()
-        if not CanRunAction("ClaimJurassicPassAction", 8.0) then
+        if not CanRunAction("ClaimJurassicPassAction", 15.0) then
             return
         end
-        local pg = player:FindFirstChild("PlayerGui")
-        if not pg then
-            return
-        end
-        local passBtn = nil
-        for _, b in ipairs(pg:GetDescendants()) do
-            if (b:IsA("ImageButton") or b:IsA("TextButton")) and IsVisibleGui(b) then
-                local t = ButtonText(b)
-                if t:find("pass") or b.Name:lower():find("pass") or b.Name:lower():find("jurassic") then
-                    for _, child in ipairs(b:GetDescendants()) do
-                        if child:IsA("TextLabel") and IsVisibleGui(child) and child.Text:find("!") then
-                            passBtn = b
-                            break
-                        end
-                    end
+        pcall(function()
+            local remotes = rs:FindFirstChild("Remotes") or rs
+
+            local passClaimAll = remotes:FindFirstChild("RF/JurassicPassClaimAll", true) or remotes:FindFirstChild("JurassicPassClaimAll", true)
+            if passClaimAll and passClaimAll:IsA("RemoteFunction") then
+                passClaimAll:InvokeServer()
+            end
+
+            local passClaim = remotes:FindFirstChild("RF/JurassicPassClaim", true) or remotes:FindFirstChild("JurassicPassClaim", true)
+            if passClaim and passClaim:IsA("RemoteFunction") then
+                for tier = 1, 30 do
+                    task.spawn(function()
+                        pcall(function() passClaim:InvokeServer(tier) end)
+                    end)
                 end
             end
-            if passBtn then
-                break
+
+            local questClaim = remotes:FindFirstChild("RF/JurassicQuestClaim", true) or remotes:FindFirstChild("JurassicQuestClaim", true)
+            if questClaim and questClaim:IsA("RemoteFunction") then
+                task.spawn(function()
+                    pcall(function() questClaim:InvokeServer() end)
+                end)
+                for q = 1, 10 do
+                    task.spawn(function()
+                        pcall(function() questClaim:InvokeServer(q) end)
+                    end)
+                end
             end
-        end
+
+            local lootClaim = remotes:FindFirstChild("RF/JurassicLootboxClaim", true) or remotes:FindFirstChild("JurassicLootboxClaim", true)
+            if lootClaim and lootClaim:IsA("RemoteFunction") then
+                task.spawn(function()
+                    pcall(function() lootClaim:InvokeServer() end)
+                end)
+            end
+        end)
+    end
 
         if passBtn then
             ClickGuiButton(passBtn)
@@ -2525,9 +2541,6 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end)
 
     AddToggle(EventsPage, "Auto UFO", "AutoUFO")
-    AddBadge(EventsPage, "Auto Golden Goose", "COMING SOON")
-    AddBadge(EventsPage, "Auto Chicken Boss", "COMING SOON")
-    AddBadge(EventsPage, "Auto Admin Abuse", "COMING SOON")
     AddToggle(EventsPage, "Auto Ancient Egg", "AutoAncientEgg")
     AddToggle(EventsPage, "Auto Jurassic Pass", "AutoJurassicPass")
 
