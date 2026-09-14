@@ -1659,96 +1659,67 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end
 
     local function CheckAndClaimJurassicPass()
-        if not CanRunAction("ClaimJurassicPassAction", 6.0) then
+        if not CanRunAction("ClaimJurassicPassAction", 5.0) then
             return
         end
         task.spawn(function()
             pcall(function()
                 local rem = rs:FindFirstChild("Remotes")
-                if not rem then
-                    return
-                end
-
-                -- 1. KLAIM PASS & CRATE DI BACKGROUND
-                local passAll = rem:FindFirstChild("JurassicPassClaimAll")
-                if passAll and passAll:IsA("RemoteFunction") then
-                    pcall(function()
-                        passAll:InvokeServer()
-                    end)
-                    task.wait(0.1)
-                end
-
-                local lootClaim = rem:FindFirstChild("JurassicLootboxClaim")
-                if lootClaim and lootClaim:IsA("RemoteFunction") then
-                    pcall(function()
-                        lootClaim:InvokeServer()
-                    end)
-                    task.wait(0.1)
-                end
-
-                local lootOpen = rem:FindFirstChild("JurassicLootboxOpen")
-                if lootOpen and lootOpen:IsA("RemoteFunction") then
-                    pcall(function()
-                        lootOpen:InvokeServer()
-                    end)
-                    task.wait(0.1)
-                end
-
-                -- 2. KLAIM QUEST VIA DATA SERVER RESMI (SATU PER SATU)
-                local questBoard = rem:FindFirstChild("JurassicQuestBoard")
-                local questClaim = rem:FindFirstChild("JurassicQuestClaim")
-
-                if questBoard and questClaim and questClaim:IsA("RemoteFunction") then
-                    local ok, board = pcall(function()
-                        return questBoard:InvokeServer()
-                    end)
-                    if ok and type(board) == "table" then
-                        for catName, catList in pairs(board) do
-                            if type(catList) == "table" then
-                                for qKey, qInfo in pairs(catList) do
-                                    pcall(function()
-                                        questClaim:InvokeServer(catName, qKey)
-                                    end)
-                                    task.wait(0.08)
-                                    if type(qInfo) == "table" and qInfo.Id then
-                                        pcall(function()
-                                            questClaim:InvokeServer(catName, qInfo.Id)
-                                        end)
-                                        task.wait(0.08)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-
-                -- 3. KLAIM BERURUTAN SLOT 1 SAMPAI 5 (DENGAN JEDA AGAR TIDAK DIBLOKIR ROBLOX)
-                if questClaim and questClaim:IsA("RemoteFunction") then
-                    local categories = {"Daily", "daily", "Hourly", "hourly"}
-                    for _, cat in ipairs(categories) do
-                        for slot = 1, 5 do
-                            pcall(function()
-                                questClaim:InvokeServer(cat, slot)
-                            end)
-                            task.wait(0.08)
-                        end
-                    end
-                    for slot = 1, 5 do
+                if rem then
+                    local passAll = rem:FindFirstChild("JurassicPassClaimAll")
+                    if passAll and passAll:IsA("RemoteFunction") then
                         pcall(function()
-                            questClaim:InvokeServer(slot)
+                            passAll:InvokeServer()
                         end)
                         task.wait(0.08)
                     end
+
+                    local lootClaim = rem:FindFirstChild("JurassicLootboxClaim")
+                    if lootClaim and lootClaim:IsA("RemoteFunction") then
+                        pcall(function()
+                            lootClaim:InvokeServer()
+                        end)
+                        task.wait(0.08)
+                    end
+
+                    local lootOpen = rem:FindFirstChild("JurassicLootboxOpen")
+                    if lootOpen and lootOpen:IsA("RemoteFunction") then
+                        pcall(function()
+                            lootOpen:InvokeServer()
+                        end)
+                        task.wait(0.08)
+                    end
+
+                    local questClaim = rem:FindFirstChild("JurassicQuestClaim")
+                    if questClaim and questClaim:IsA("RemoteFunction") then
+                        local categories = {"Daily", "daily", "Hourly", "hourly"}
+                        for _, cat in ipairs(categories) do
+                            for slot = 1, 5 do
+                                pcall(function()
+                                    questClaim:InvokeServer(cat, slot)
+                                end)
+                                task.wait(0.06)
+                            end
+                        end
+                        for slot = 1, 5 do
+                            pcall(function()
+                                questClaim:InvokeServer(slot)
+                            end)
+                            task.wait(0.06)
+                        end
+                    end
                 end
 
-                -- 4. BANTUAN PASIF: KLIK TOMBOL HIJAU JIKA ANDA SEDANG MEMBUKA JENDELANYA
                 local pg = player:FindFirstChild("PlayerGui")
                 if pg then
                     for _, obj in ipairs(pg:GetDescendants()) do
-                        if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and IsVisibleGui(obj) then
+                        if obj:IsA("TextButton") or obj:IsA("ImageButton") then
                             local t = ButtonText(obj)
                             if t == "claim" or t == "claim all" or t:find("claim all") or (t:find("claim") and not t:find("egg") and not t:find("pass")) then
-                                ClickGuiButton(obj)
+                                pcall(function()
+                                    ClickGuiButton(obj)
+                                end)
+                                task.wait(0.05)
                             end
                         end
                     end
