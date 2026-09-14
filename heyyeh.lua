@@ -1669,26 +1669,32 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         end
         lastEventCheckTime = now
 
+        local hasAncientText = false
         local pg = player:FindFirstChild("PlayerGui")
         if pg then
             for _, lbl in ipairs(pg:GetDescendants()) do
                 if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
                     local t = lbl.Text:lower()
-                    if IsForbiddenHot(t) then
+                    if IsForbiddenHot(t) or t:find("ufo") or t:find("alien") then
                         cachedEventActive = false
                         return false
                     end
-                    if (t:find("ancient") or t:find("jurassic") or t:find("fossil")) and t:find("egg") and not t:find("auto") then
-                        cachedEventActive = true
-                        return true
+                    if (t:find("ancient egg") or t:find("jurassic egg") or (t:find("ancient") and t:find("egg"))) and not t:find("auto") then
+                        hasAncientText = true
+                        break
                     end
                 end
             end
         end
 
-        local egg = FindAncientEgg()
-        cachedEventActive = (egg ~= nil)
-        return cachedEventActive
+        local ancientObj = FindAncientEgg()
+        if hasAncientText or ancientObj then
+            cachedEventActive = true
+            return true
+        end
+
+        cachedEventActive = false
+        return false
     end
 
     local function FindEventScatteredEgg()
@@ -1720,7 +1726,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             local pn = part.Parent.Name:lower()
             local ppn = (part.Parent.Parent and part.Parent.Parent.Name:lower()) or ""
 
-            if IsForbiddenHot(n) or IsForbiddenHot(pn) or IsForbiddenHot(ppn) then
+            if IsForbiddenHot(n) or IsForbiddenHot(pn) or IsForbiddenHot(ppn) or n:find("ufo") or pn:find("ufo") then
                 return
             end
 
@@ -1734,7 +1740,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             end
 
             local isEgg = false
-            if n:find("egg") or pn:find("egg") or n:find("shell") or pn:find("event") then
+            if n:find("ancient") or n:find("jurassic") or (n:find("egg") and not n:find("scrap")) then
                 isEgg = true
             end
 
@@ -1767,7 +1773,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             for _, obj in ipairs(workspace:GetChildren()) do
                 if obj:IsA("Folder") or obj:IsA("Model") then
                     local fn = obj.Name:lower()
-                    if not fn:find("plot") and not fn:find("coop") and not fn:find("nest") and not fn:find("feeder") and not fn:find("recycler") and not IsForbiddenHot(fn) then
+                    if not fn:find("plot") and not fn:find("coop") and not fn:find("nest") and not fn:find("feeder") and not fn:find("recycler") and not IsForbiddenHot(fn) and not fn:find("ufo") then
                         for _, part in ipairs(obj:GetChildren()) do
                             if part:IsA("BasePart") then
                                 CheckPart(part)
@@ -2005,22 +2011,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                                 TriggerNearbyPrompt("ancient", 20)
                                 TriggerNearbyPrompt("deposit", 20)
                                 task.wait(0.2)
-                            else
-                                local arenaPos = GetArenaCenter()
-                                if arenaPos then
-                                    WalkTo(arenaPos, 3.5, 4.0)
-                                    TriggerNearbyPrompt("egg", 20)
-                                    task.wait(0.2)
-                                end
                             end
-                        else
-                            if ancientEgg then
-                                local root = GetRoot()
-                                if root and (root.Position - ancientEgg.Position).Magnitude > 35 then
-                                    WalkTo(ancientEgg.Position, 2.5, 25.0)
-                                end
-                            end
-                            task.wait(0.3)
                         end
                     else
                         if wasAncientEggActive then
