@@ -1106,7 +1106,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             for _, obj in ipairs(nestEggs:GetDescendants()) do
                 if obj:IsA("ProximityPrompt") and obj.Enabled then
                     local p = obj.Parent and obj.Parent:IsA("BasePart") and obj.Parent or
-                                  obj:FindFirstAncestorWhichIsA("BasePart")
+                                 obj:FindFirstAncestorWhichIsA("BasePart")
                     if p and (root.Position - p.Position).Magnitude <= 24 then
                         TriggerPrompt(obj)
                     end
@@ -2550,7 +2550,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         if isLive then
             LiveCarriedLabel = r
         end
-        if isTrial) then
+        if isTrial then
             LiveTrialLabel = r
         end
     end
