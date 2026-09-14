@@ -1964,44 +1964,82 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end
 
         local function CheckAndClaimJurassicPass()
-        if not CanRunAction("ClaimJurassicPassAction", 6.0) then
+        if not CanRunAction("ClaimJurassicPassAction", 3.0) then
             return
         end
-        pcall(function()
-            local remotes = rs:FindFirstChild("Remotes") or rs
 
-            local passClaimAll = remotes:FindFirstChild("JurassicPassClaimAll")
-            if passClaimAll and passClaimAll:IsA("RemoteFunction") then
-                pcall(function() passClaimAll:InvokeServer() end)
-            end
+        task.spawn(function()
+            pcall(function()
+                local pg = player:FindFirstChild("PlayerGui")
+                if not pg then return end
 
-            local passClaim = remotes:FindFirstChild("JurassicPassClaim")
-            if passClaim and passClaim:IsA("RemoteFunction") then
-                for tier = 1, 30 do
-                    task.spawn(function()
-                        pcall(function() passClaim:InvokeServer(tier) end)
-                    end)
+                local passBtn = nil
+                for _, b in ipairs(pg:GetDescendants()) do
+                    if (b:IsA("TextButton") or b:IsA("ImageButton")) and IsVisibleGui(b) then
+                        local t = ButtonText(b)
+                        if t == "pass" or (t:find("pass") and not t:find("auto") and not t:find("gamepass")) then
+                            local hasExclamation = false
+                            for _, child in ipairs(b:GetDescendants()) do
+                                if child:IsA("TextLabel") and IsVisibleGui(child) and child.Text:find("!") then
+                                    hasExclamation = true
+                                    break
+                                end
+                            end
+                            if hasExclamation then
+                                passBtn = b
+                                break
+                            end
+                        end
+                    end
                 end
-            end
 
-            local questClaim = remotes:FindFirstChild("JurassicQuestClaim")
-            if questClaim and questClaim:IsA("RemoteFunction") then
-                task.spawn(function()
-                    pcall(function() questClaim:InvokeServer() end)
-                end)
-                for q = 1, 10 do
-                    task.spawn(function()
-                        pcall(function() questClaim:InvokeServer(q) end)
-                    end)
+                if passBtn then
+                    ClickGuiButton(passBtn)
+                    task.wait(0.4)
+
+                    local rem = rs:FindFirstChild("Remotes") or rs
+                    local pAll = rem:FindFirstChild("JurassicPassClaimAll")
+                    if pAll and pAll:IsA("RemoteFunction") then
+                        pcall(function() pAll:InvokeServer() end)
+                    end
+                    local qAll = rem:FindFirstChild("JurassicQuestClaim")
+                    if qAll and qAll:IsA("RemoteFunction") then
+                        pcall(function() qAll:InvokeServer() end)
+                        for q = 1, 10 do
+                            pcall(function() qAll:InvokeServer(q) end)
+                        end
+                    end
+                    local lClaim = rem:FindFirstChild("JurassicLootboxClaim")
+                    if lClaim and lClaim:IsA("RemoteFunction") then
+                        pcall(function() lClaim:InvokeServer() end)
+                    end
+
+                    for _, obj in ipairs(pg:GetDescendants()) do
+                        if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and IsVisibleGui(obj) then
+                            local t = ButtonText(obj)
+                            if t:find("claim all") or t:find("claimall") or (t:find("claim") and not t:find("pass") and not t:find("auto") and not t:find("rebirth")) then
+                                ClickGuiButton(obj)
+                            end
+                        end
+                    end
+
+                    task.wait(0.3)
+
+                    for _, obj in ipairs(pg:GetDescendants()) do
+                        if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and IsVisibleGui(obj) then
+                            local t = ButtonText(obj)
+                            local n = obj.Name:lower()
+                            if t == "x" or t == "close" or n == "x" or n == "close" or n == "closebtn" then
+                                local pName = (obj.Parent and obj.Parent.Name:lower()) or ""
+                                if pName:find("pass") or pName:find("jurassic") or pName:find("header") or pName:find("top") or pName:find("title") or pName:find("frame") then
+                                    ClickGuiButton(obj)
+                                    break
+                                end
+                            end
+                        end
+                    end
                 end
-            end
-
-            local lootClaim = remotes:FindFirstChild("JurassicLootboxClaim")
-            if lootClaim and lootClaim:IsA("RemoteFunction") then
-                task.spawn(function()
-                    pcall(function() lootClaim:InvokeServer() end)
-                end)
-            end
+            end)
         end)
     end
 
@@ -2012,7 +2050,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                     CheckAndClaimJurassicPass()
                 end
             end)
-            task.wait(2.0)
+            task.wait(2.5)
         end
     end)
 
@@ -2028,7 +2066,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         return Vector3.new(0, 0, 0)
     end
 
-    local function CheckCarryingEgg()
+    local function IsCarryingEgg()
         local char = player.Character
         if char then
             for _, item in ipairs(char:GetChildren()) do
@@ -2079,71 +2117,22 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         end
     end
 
-    local function IsAncientEggLive()
-        local pg = player:FindFirstChild("PlayerGui")
-        local isUpcoming = false
-        local isLive = false
-
-        if pg then
-            for _, lbl in ipairs(pg:GetDescendants()) do
-                if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
-                    local t = lbl.Text:lower()
-                    if t:find("upcoming") then
-                        isUpcoming = true
-                    end
-                    if t == "live" or (t:find("live") and not t:find("trial") and not t:find("ufo")) then
-                        isLive = true
-                    end
-                    if t:find("bursts in") or t:find("growth") then
-                        isLive = true
-                    end
-                end
-            end
-        end
-
-        if isUpcoming and not isLive then
-            return false
-        end
-
-        if isLive then
-            return true
-        end
-
-        for _, b in ipairs(workspace:GetDescendants()) do
-            if b:IsA("BillboardGui") and b.Enabled then
-                for _, lbl in ipairs(b:GetDescendants()) do
-                    if lbl:IsA("TextLabel") and lbl.Visible then
-                        local t = lbl.Text:lower()
-                        if t:find("bursts in") or t:find("growth") or (t:find("tier") and t:find("/")) then
-                            return true
-                        end
-                    end
-                end
-            end
-        end
-
-        return false
-    end
-
-    local function FindEventEggTarget()
+    local function FindGroundEgg()
         local root = GetRoot()
         if not root then return nil, nil end
         local centerPos = GetEventCenterPosition()
-
-        local bestObj = nil
-        local bestPrompt = nil
-        local bestDist = 9999
+        local bestPart, bestPrompt, bestDist = nil, nil, 9999
 
         for _, desc in ipairs(workspace:GetDescendants()) do
             if desc:IsA("ProximityPrompt") and desc.Enabled then
                 local p = desc.Parent and (desc.Parent:IsA("BasePart") and desc.Parent or desc.Parent:FindFirstAncestorWhichIsA("BasePart"))
-                if p and not p:IsDescendantOf(player.Character) and (p.Position - centerPos).Magnitude > 15 then
-                    local act = (desc.ActionText .. " " .. desc.ObjectText .. " " .. p.Name):lower()
+                if p and not p:IsDescendantOf(player.Character) and (p.Position - centerPos).Magnitude > 12 then
+                    local act = (desc.ActionText .. " " .. desc.ObjectText .. " " .. p.Name .. " " .. p.Parent.Name):lower()
                     if act:find("pick") or act:find("egg") or act:find("take") or act:find("collect") or act:find("interact") then
                         local d = FlatDist(root.Position, p.Position)
                         if d < bestDist then
                             bestDist = d
-                            bestObj = p
+                            bestPart = p
                             bestPrompt = desc
                         end
                     end
@@ -2151,16 +2140,16 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             end
         end
 
-        if not bestObj then
+        if not bestPart then
             for _, part in ipairs(workspace:GetDescendants()) do
                 if part:IsA("BasePart") and not part:IsDescendantOf(player.Character) and not IsRealScrap(part) then
                     local n = (part.Name .. " " .. part.Parent.Name):lower()
-                    if (n:find("egg") or n:find("fossil") or n:find("shell")) and not n:find("coop") and not n:find("nest") and not n:find("feeder") and not n:find("incubator") and not n:find("shop") then
-                        if (part.Position - centerPos).Magnitude > 15 then
+                    if (n:find("egg") or n:find("fossil") or n:find("shell")) and not n:find("nest") and not n:find("incubator") and not n:find("coop") and not n:find("feeder") and not n:find("shop") then
+                        if (part.Position - centerPos).Magnitude > 12 then
                             local d = FlatDist(root.Position, part.Position)
                             if d < bestDist then
                                 bestDist = d
-                                bestObj = part
+                                bestPart = part
                                 bestPrompt = part:FindFirstChildOfClass("ProximityPrompt") or part:FindFirstChildWhichIsA("ProximityPrompt", true)
                             end
                         end
@@ -2169,7 +2158,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             end
         end
 
-        return bestObj, bestPrompt
+        return bestPart, bestPrompt
     end
 
     task.spawn(function()
@@ -2181,12 +2170,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                     local hum = char and char:FindFirstChildOfClass("Humanoid")
 
                     if hrp and hum and hum.Health > 0 then
-                        if not IsAncientEggLive() then
-                            task.wait(1.0)
-                            return
-                        end
-
-                        local isCarrying, carriedTool = CheckCarryingEgg()
+                        local isCarrying = IsCarryingEgg()
 
                         if isCarrying then
                             EquipEgg()
@@ -2210,12 +2194,11 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                                 TriggerNearbyPrompt("interact", 16)
                                 TriggerNearbyPrompt("growth", 16)
                                 TriggerAllPromptsAround(16)
-                                TryClickGuiAction("DepositEgg", {"deposit", "feed", "place"}, 0.3)
+                                TryClickGuiAction("DepositBtn", {"deposit", "feed", "place"}, 0.3)
                                 task.wait(0.3)
                             end
                         else
-                            TryClickGuiAction("PickUpEgg", {"pick up", "pickup"}, 0.3)
-                            local targetPart, prompt = FindEventEggTarget()
+                            local targetPart, prompt = FindGroundEgg()
 
                             if targetPart then
                                 local targetPos = targetPart.Position
@@ -2223,7 +2206,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                                     WalkTo(targetPos, 3.5, 2.5)
                                 end
 
-                                if FlatDist(hrp.Position, targetPos) <= 6 then
+                                if FlatDist(hrp.Position, targetPos) <= 7 then
                                     FastTouch(targetPart)
                                     if prompt then
                                         TriggerPrompt(prompt)
@@ -2234,7 +2217,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                                     TriggerNearbyPrompt("collect", 16)
                                     TriggerNearbyPrompt("interact", 16)
                                     TriggerAllPromptsAround(16)
-                                    TryClickGuiAction("PickUpEgg", {"pick up", "pickup"}, 0.3)
+                                    TryClickGuiAction("PickUpBtn", {"pick up", "pickup"}, 0.3)
                                     task.wait(0.3)
                                 end
                             else
