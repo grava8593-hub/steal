@@ -2057,10 +2057,8 @@ local function FindEventEggPrompt()
     return bestPrompt, bestDist
 end
 
-local ancientEggPatrolAngle = 0
-
 task.spawn(function()
-    while task.wait(0.4) do
+    while task.wait(0.5) do
         if Flags.AutoAncientEgg then
             local char = player.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -2111,11 +2109,7 @@ task.spawn(function()
                             task.wait(0.3)
                         end
                     else
-                        ancientEggPatrolAngle = (ancientEggPatrolAngle + 45) % 360
-                        local rad = math.rad(ancientEggPatrolAngle)
-                        local patrolPos = Vector3.new(math.cos(rad) * 90, 3, math.sin(rad) * 90)
-                        local pDist = (hrp.Position - patrolPos).Magnitude
-                        WalkTo(patrolPos, 6.0, math.clamp(pDist / 12, 3.5, 12.0))
+                        task.wait(0.5)
                     end
                 end
             end
