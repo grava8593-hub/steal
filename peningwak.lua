@@ -1810,6 +1810,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         end
         local arenaCenter = GetArenaCenter()
         local ancientEgg = FindAncientEgg()
+        local centerPos = (ancientEgg and ancientEgg.Position) or arenaCenter
         local best, bestDist = nil, 9999
 
         local candidateContainers = {
@@ -1827,7 +1828,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             if not part or not part:IsA("BasePart") or not part.Parent or part:IsDescendantOf(player.Character) or IsRealScrap(part) then
                 return
             end
-            if CollectedEggBlacklist[part] or CollectedEggBlacklist[part.Parent] then
+            if CollectedEggBlacklist[part] then
                 return
             end
 
@@ -1839,15 +1840,12 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                 return
             end
 
-            if pn:find("nest") or pn:find("incubator") or pn:find("plot") or pn:find("coop") or pn:find("shop") or
-               ppn:find("plot") or ppn:find("coop") or ppn:find("nest") or n:find("nest") or n:find("incubator") then
+            if pn:find("nest") or pn:find("incubator") or pn:find("coop") or pn:find("shop") or
+               ppn:find("coop") or ppn:find("nest") or n:find("nest") or n:find("incubator") then
                 return
             end
 
-            if arenaCenter and (part.Position - arenaCenter).Magnitude <= 28 then
-                return
-            end
-            if ancientEgg and (part.Position - ancientEgg.Position).Magnitude <= 28 then
+            if centerPos and (part.Position - centerPos).Magnitude <= 16 then
                 return
             end
 
@@ -1860,7 +1858,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
 
             if isEgg then
                 local d = FlatDist(root.Position, part.Position)
-                if d < 800 and d < bestDist then
+                if d < 1500 and d < bestDist then
                     best = part
                     bestDist = d
                 end
@@ -1881,14 +1879,14 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             for _, prompt in ipairs(workspace:GetDescendants()) do
                 if prompt:IsA("ProximityPrompt") and prompt.Enabled then
                     local p = prompt.Parent and prompt.Parent:IsA("BasePart") and prompt.Parent or prompt:FindFirstAncestorWhichIsA("BasePart")
-                    if p and not p:IsDescendantOf(player.Character) and not CollectedEggBlacklist[p] and not CollectedEggBlacklist[p.Parent] then
+                    if p and not p:IsDescendantOf(player.Character) and not CollectedEggBlacklist[p] then
                         local pt = (prompt.ActionText .. " " .. prompt.ObjectText .. " " .. prompt.Name .. " " .. p.Name .. " " .. p.Parent.Name):lower()
                         if (pt:find("egg") or pt:find("ancient") or pt:find("fossil") or pt:find("jurassic")) and not IsForbiddenHot(pt) and not pt:find("ufo") then
-                            if not pt:find("nest") and not pt:find("incubator") and not pt:find("coop") and not pt:find("plot") and not pt:find("shop") then
-                                local dCenter = arenaCenter and (p.Position - arenaCenter).Magnitude or 999
-                                if dCenter > 28 then
+                            if not pt:find("nest") and not pt:find("incubator") and not pt:find("coop") and not pt:find("shop") then
+                                local dCenter = centerPos and (p.Position - centerPos).Magnitude or 999
+                                if dCenter > 16 then
                                     local d = FlatDist(root.Position, p.Position)
-                                    if d < 800 and d < bestDist then
+                                    if d < 1500 and d < bestDist then
                                         best = p
                                         bestDist = d
                                     end
@@ -1904,7 +1902,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             for _, obj in ipairs(workspace:GetChildren()) do
                 if obj:IsA("Folder") or obj:IsA("Model") then
                     local fn = obj.Name:lower()
-                    if not fn:find("plot") and not fn:find("coop") and not fn:find("nest") and not fn:find("feeder") and not fn:find("recycler") and not IsForbiddenHot(fn) and not fn:find("ufo") then
+                    if not fn:find("coop") and not fn:find("nest") and not fn:find("feeder") and not fn:find("recycler") and not IsForbiddenHot(fn) and not fn:find("ufo") then
                         for _, part in ipairs(obj:GetChildren()) do
                             if part:IsA("BasePart") then
                                 CheckPart(part)
@@ -2118,7 +2116,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         end)
     end
 
-    task.spawn(function()
+        task.spawn(function()
         while IsRunning do
             pcall(function()
                 if Flags.AutoJurassicPass then
@@ -2131,10 +2129,13 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                         wasAncientEggActive = true
                         local ancientEgg = FindAncientEgg()
                         local arenaPos = (ancientEgg and ancientEgg.Position) or GetArenaCenter()
+                        local root = GetRoot()
 
                         if IsHoldingEgg() then
-                            if arenaPos then
-                                WalkTo(arenaPos, 3.5, 2.5)
+                            if arenaPos and root then
+                                local distToCenter = FlatDist(root.Position, arenaPos)
+                                local walkDuration = math.clamp(distToCenter / 12, 4.0, 15.0)
+                                WalkTo(arenaPos, walkDuration, 2.5)
                                 if ancientEgg then
                                     FastTouch(ancientEgg)
                                     InteractWithTargetPrompt(ancientEgg)
@@ -2148,9 +2149,12 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                             end
                         else
                             local egg = FindEventScatteredEgg()
-                            if egg then
+                            if egg and root then
+                                local distToEgg = FlatDist(root.Position, egg.Position)
+                                local walkDuration = math.clamp(distToEgg / 12, 3.5, 16.0)
+
                                 FastTouch(egg)
-                                WalkTo(egg.Position, 2.8, 2.0)
+                                WalkTo(egg.Position, walkDuration, 2.0)
                                 FastTouch(egg)
                                 InteractWithTargetPrompt(egg)
                                 TriggerNearbyPrompt("egg", 16)
@@ -2158,13 +2162,13 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                                 TriggerNearbyPrompt("collect", 16)
                                 TriggerNearbyPrompt("grab", 16)
                                 CollectedEggBlacklist[egg] = tick()
-                                if egg.Parent then
-                                    CollectedEggBlacklist[egg.Parent] = tick()
-                                end
                                 task.wait(0.15)
 
-                                if arenaPos then
-                                    WalkTo(arenaPos, 3.5, 2.5)
+                                root = GetRoot()
+                                if arenaPos and root then
+                                    local distToCenter = FlatDist(root.Position, arenaPos)
+                                    local deliverDuration = math.clamp(distToCenter / 12, 4.0, 15.0)
+                                    WalkTo(arenaPos, deliverDuration, 2.5)
                                     if ancientEgg then
                                         FastTouch(ancientEgg)
                                         InteractWithTargetPrompt(ancientEgg)
@@ -2177,13 +2181,14 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                                     task.wait(0.2)
                                 end
                             else
-                                if arenaPos then
-                                    local root = GetRoot()
-                                    if root and FlatDist(root.Position, arenaPos) > 42 then
-                                        WalkTo(arenaPos, 2.5, 38.0)
+                                if arenaPos and root then
+                                    local currentDist = FlatDist(root.Position, arenaPos)
+                                    if currentDist < 25 then
+                                        local patrolTarget = arenaPos + Vector3.new(55, 0, 0)
+                                        WalkTo(patrolTarget, 4.0, 4.0)
                                     end
                                 end
-                                task.wait(0.2)
+                                task.wait(0.25)
                             end
                         end
                     else
