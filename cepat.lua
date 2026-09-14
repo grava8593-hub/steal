@@ -1715,6 +1715,58 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         end
         lastEventCheckTime = now
 
+        local pg = player:FindFirstChild("PlayerGui")
+        local isUpcoming = false
+        local isLiveBanner = false
+
+        if pg then
+            for _, lbl in ipairs(pg:GetDescendants()) do
+                if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
+                    local t = lbl.Text:lower():gsub("%s+", " ")
+                    if t == "upcoming" or (t:find("upcoming") and not t:find("reward")) then
+                        isUpcoming = true
+                    end
+                    if t == "live" or (t:find("live") and not t:find("trial") and not t:find("ufo")) then
+                        isLiveBanner = true
+                    end
+                end
+            end
+        end
+
+        if isUpcoming and not isLiveBanner then
+            cachedEventActive = false
+            return false
+        end
+
+        local ancientObj = FindAncientEgg()
+        if ancientObj and isLiveBanner and not isUpcoming then
+            cachedEventActive = true
+            return true
+        end
+
+        local hasArenaBillboard = false
+        for _, b in ipairs(workspace:GetDescendants()) do
+            if b:IsA("BillboardGui") and b.Enabled then
+                for _, lbl in ipairs(b:GetDescendants()) do
+                    if lbl:IsA("TextLabel") and lbl.Visible then
+                        local t = lbl.Text:lower()
+                        if (t:find("tier") and t:find("/")) or t:find("bursts in") or t:find("growth") then
+                            hasArenaBillboard = true
+                            break
+                        end
+                    end
+                end
+            end
+            if hasArenaBillboard then
+                break
+            end
+        end
+
+        if hasArenaBillboard and not isUpcoming then
+            cachedEventActive = true
+            return true
+        end
+
         local anchor = workspace:FindFirstChild("EventCardAnchor")
         if anchor then
             for _, obj in ipairs(anchor:GetDescendants()) do
@@ -1724,7 +1776,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                         cachedEventActive = false
                         return false
                     end
-                    if t:find("ancient") or t:find("jurassic") then
+                    if (t:find("ancient") or t:find("jurassic")) and isLiveBanner and not isUpcoming then
                         cachedEventActive = true
                         return true
                     end
@@ -1732,55 +1784,18 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             end
         end
 
-        local rem = rs:FindFirstChild("Remotes") and rs.Remotes:FindFirstChild("LiveEventGetActive")
-        if rem and rem:IsA("RemoteFunction") then
-            local ok, res = pcall(function() return rem:InvokeServer() end)
-            if ok and type(res) == "table" then
-                local allStrings = UnpackTableStrings(res)
-                if IsForbiddenHot(allStrings) or allStrings:find("ufo") or allStrings:find("alien") then
-                    cachedEventActive = false
-                    return false
-                end
-                if allStrings:find("ancient") or allStrings:find("jurassic") then
-                    cachedEventActive = true
-                    return true
-                end
-            end
-        end
-
-        local pg = player:FindFirstChild("PlayerGui")
-        if pg then
+        if isLiveBanner and not isUpcoming and pg then
             for _, lbl in ipairs(pg:GetDescendants()) do
                 if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
                     local t = lbl.Text:lower()
                     if not lbl.Name:lower():find("erdeva") then
-                        if (t:find("ancient egg") or t:find("jurassic egg") or (t:find("ancient") and t:find("egg"))) and not t:find("auto") and not IsForbiddenHot(t) then
+                        if (t:find("ancient egg") or t:find("jurassic egg")) and not t:find("auto") and not IsForbiddenHot(t) then
                             cachedEventActive = true
                             return true
                         end
                     end
                 end
             end
-        end
-
-        for _, b in ipairs(workspace:GetDescendants()) do
-            if b:IsA("BillboardGui") and b.Enabled then
-                for _, lbl in ipairs(b:GetDescendants()) do
-                    if lbl:IsA("TextLabel") and lbl.Visible then
-                        local t = lbl.Text:lower()
-                        if (t:find("tier") and t:find("/")) or t:find("bursts in") or t:find("growth") or t:find("ancient") then
-                            cachedEventActive = true
-                            return true
-                        end
-                    end
-                end
-            end
-        end
-
-        local ancientObj = FindAncientEgg()
-        if ancientObj then
-            cachedEventActive = true
-            return true
         end
 
         cachedEventActive = false
