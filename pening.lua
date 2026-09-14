@@ -1594,6 +1594,12 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     local wasAncientEggActive = false
     local CollectedEggBlacklist = {}
 
+    local function IsForbiddenHot(str)
+        if not str then return false end
+        local s = str:lower()
+        return s:find("hot") or s:find("fire") or s:find("lava") or s:find("magma") or s:find("flame") or s:find("burn")
+    end
+
     local function CleanupEggBlacklist()
         local now = tick()
         for egg, t in pairs(CollectedEggBlacklist) do
@@ -1604,7 +1610,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end
 
     local function FindAncientEgg()
-        if cachedAncientEgg and cachedAncientEgg.Parent and (tick() - lastAncientEggCheck < 10) then
+        if cachedAncientEgg and cachedAncientEgg.Parent and not IsForbiddenHot(cachedAncientEgg.Name) and (tick() - lastAncientEggCheck < 10) then
             return cachedAncientEgg
         end
 
@@ -1616,12 +1622,15 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                 for _, obj in ipairs(folder:GetChildren()) do
                     if not obj:IsDescendantOf(player.Character) then
                         local n = obj.Name:lower()
-                        if n:find("ancientegg") or n:find("ancient_egg") or n:find("jurassicegg") or n:find("eventegg") then
-                            local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
-                            if p then
-                                cachedAncientEgg = p
-                                lastAncientEggCheck = tick()
-                                return p
+                        local pn = obj.Parent and obj.Parent.Name:lower() or ""
+                        if not IsForbiddenHot(n) and not IsForbiddenHot(pn) then
+                            if n:find("ancientegg") or n:find("ancient_egg") or n:find("jurassicegg") or n:find("fossilegg") or (n:find("ancient") and n:find("egg")) then
+                                local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
+                                if p then
+                                    cachedAncientEgg = p
+                                    lastAncientEggCheck = tick()
+                                    return p
+                                end
                             end
                         end
                     end
@@ -1633,17 +1642,11 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             for _, folder in ipairs(candidateFolders) do
                 if folder then
                     for _, obj in ipairs(folder:GetChildren()) do
-                        if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) and not IsRealScrap(obj) then
-                            local n = obj.Name:lower()
-                            if (n:find("egg") or n:find("shell") or n:find("ancient")) and (obj.Position - arenaCenter).Magnitude <= 35 then
-                                cachedAncientEgg = obj
-                                lastAncientEggCheck = tick()
-                                return obj
-                            end
-                        elseif obj:IsA("Model") and not obj:IsDescendantOf(player.Character) then
-                            local n = obj.Name:lower()
-                            if n:find("egg") or n:find("ancient") then
-                                local p = obj:FindFirstChildWhichIsA("BasePart", true)
+                        local n = obj.Name:lower()
+                        local pn = obj.Parent and obj.Parent.Name:lower() or ""
+                        if not IsForbiddenHot(n) and not IsForbiddenHot(pn) and not obj:IsDescendantOf(player.Character) and not IsRealScrap(obj) then
+                            if (n:find("ancient") or n:find("jurassic") or n:find("fossil")) and (obj:IsA("BasePart") or obj:IsA("Model")) then
+                                local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
                                 if p and (p.Position - arenaCenter).Magnitude <= 35 then
                                     cachedAncientEgg = p
                                     lastAncientEggCheck = tick()
@@ -1656,7 +1659,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             end
         end
 
-        return cachedAncientEgg and cachedAncientEgg.Parent and cachedAncientEgg or nil
+        return nil
     end
 
     local function IsAncientEggEventActive()
@@ -1671,21 +1674,16 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             for _, lbl in ipairs(pg:GetDescendants()) do
                 if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
                     local t = lbl.Text:lower()
-                    if (t:find("ancient egg") or t:find("egg event") or t:find("jurassic egg")) and not t:find("auto") then
-                        cachedEventActive = true
-                        return true
+                    if IsForbiddenHot(t) then
+                        cachedEventActive = false
+                        return false
                     end
-                    if (t:find("event ends") or t:find("ends in") or t:find("event:")) and (t:find("m") or t:find("s") or t:find(":")) then
+                    if (t:find("ancient") or t:find("jurassic") or t:find("fossil")) and t:find("egg") and not t:find("auto") then
                         cachedEventActive = true
                         return true
                     end
                 end
             end
-        end
-
-        if workspace:FindFirstChild("AncientEgg") or workspace:FindFirstChild("JurassicEgg") then
-            cachedEventActive = true
-            return true
         end
 
         local egg = FindAncientEgg()
@@ -1721,6 +1719,10 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             local n = part.Name:lower()
             local pn = part.Parent.Name:lower()
             local ppn = (part.Parent.Parent and part.Parent.Parent.Name:lower()) or ""
+
+            if IsForbiddenHot(n) or IsForbiddenHot(pn) or IsForbiddenHot(ppn) then
+                return
+            end
 
             if pn:find("nest") or pn:find("incubator") or pn:find("plot") or pn:find("coop") or pn:find("shop") or
                ppn:find("plot") or ppn:find("coop") or ppn:find("nest") or n:find("nest") or n:find("incubator") then
@@ -1765,7 +1767,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             for _, obj in ipairs(workspace:GetChildren()) do
                 if obj:IsA("Folder") or obj:IsA("Model") then
                     local fn = obj.Name:lower()
-                    if not fn:find("plot") and not fn:find("coop") and not fn:find("nest") and not fn:find("feeder") and not fn:find("recycler") then
+                    if not fn:find("plot") and not fn:find("coop") and not fn:find("nest") and not fn:find("feeder") and not fn:find("recycler") and not IsForbiddenHot(fn) then
                         for _, part in ipairs(obj:GetChildren()) do
                             if part:IsA("BasePart") then
                                 CheckPart(part)
