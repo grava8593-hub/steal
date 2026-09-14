@@ -1784,6 +1784,31 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                 local pg = player:FindFirstChild("PlayerGui")
                 if not pg then return end
 
+                local function FindJurassicContainer()
+                    for _, name in ipairs({"JurassicPass", "Pass", "EventPass", "SeasonPass", "PassGui"}) do
+                        local g = pg:FindFirstChild(name, true)
+                        if g and ((g:IsA("ScreenGui") and g.Enabled) or (g:IsA("GuiObject") and IsVisibleGui(g))) then
+                            local sc = g:FindFirstAncestorOfClass("ScreenGui")
+                            return sc or g
+                        end
+                    end
+                    for _, lbl in ipairs(pg:GetDescendants()) do
+                        if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
+                            local t = lbl.Text:lower()
+                            if t:find("season ends") or t:find("endless rebirth") then
+                                local sc = lbl:FindFirstAncestorOfClass("ScreenGui")
+                                if sc then return sc end
+                                local top = lbl
+                                while top.Parent and top.Parent:IsA("GuiObject") and top.Parent ~= pg do
+                                    top = top.Parent
+                                end
+                                return top
+                            end
+                        end
+                    end
+                    return nil
+                end
+
                 local rail = pg:FindFirstChild("ArenaSideRail")
                 local passBtn = rail and (rail:FindFirstChild("Pass", true) or rail:FindFirstChild("JurassicPass", true) or rail:FindFirstChild("Jurassic", true))
                 if not passBtn and rail then
@@ -1795,6 +1820,8 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                     end
                 end
 
+                local passGui = FindJurassicContainer()
+
                 local hasExclamation = false
                 if passBtn then
                     for _, ch in ipairs(passBtn:GetDescendants()) do
@@ -1805,73 +1832,86 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                     end
                 end
 
-                local passGui = pg:FindFirstChild("JurassicPass", true) or pg:FindFirstChild("Pass", true) or pg:FindFirstChild("EventPass", true)
+                if passGui then
+                    for _, ch in ipairs(passGui:GetDescendants()) do
+                        if ch:IsA("TextLabel") and IsVisibleGui(ch) and ch.Text:find("!") then
+                            hasExclamation = true
+                            break
+                        end
+                    end
+                end
 
-                local function ClosePassGui()
-                    if not passGui then return end
-                    for _, b in ipairs(passGui:GetDescendants()) do
+                local function ClosePassGui(container)
+                    if not container then return end
+                    for _, b in ipairs(container:GetDescendants()) do
                         if (b:IsA("TextButton") or b:IsA("ImageButton")) and IsVisibleGui(b) then
                             local bn = b.Name:lower()
                             local bt = (b:IsA("TextButton") and b.Text:lower():gsub("%s+", "")) or ""
                             if (bn == "x" or bn == "close" or bn == "closebutton" or bn == "exit" or bn:find("close") or bt == "x" or bt == "close") and not bn:find("xp") and not bt:find("xp") then
                                 ClickGuiButton(b)
-                                task.wait(0.1)
+                                task.wait(0.15)
                                 break
                             end
                         end
                     end
                 end
 
-                if passGui and IsVisibleGui(passGui) and not hasExclamation then
-                    local innerExcl = false
-                    for _, ch in ipairs(passGui:GetDescendants()) do
-                        if ch:IsA("TextLabel") and IsVisibleGui(ch) and ch.Text:find("!") then
-                            innerExcl = true
-                            break
-                        end
-                    end
-                    if not innerExcl then
-                        ClosePassGui()
-                        return
-                    end
-                end
-
-                if not hasExclamation and not (passGui and IsVisibleGui(passGui)) then
+                if passGui and not hasExclamation then
+                    ClosePassGui(passGui)
                     return
                 end
 
-                if passBtn and not (passGui and IsVisibleGui(passGui)) then
+                if not hasExclamation and not passGui then
+                    return
+                end
+
+                if not passGui and passBtn then
                     ClickGuiButton(passBtn)
                     task.wait(0.35)
-                    passGui = pg:FindFirstChild("JurassicPass", true) or pg:FindFirstChild("Pass", true) or pg:FindFirstChild("EventPass", true)
+                    passGui = FindJurassicContainer()
                 end
 
-                if not passGui or not IsVisibleGui(passGui) then
+                if not passGui then
                     return
                 end
 
-                local function ClickMatchingTab(name)
-                    local target = name:lower()
-                    for _, b in ipairs(passGui:GetDescendants()) do
+                local function ClickTabByName(container, tabKeyword)
+                    tabKeyword = tabKeyword:lower()
+                    for _, b in ipairs(container:GetDescendants()) do
                         if (b:IsA("TextButton") or b:IsA("ImageButton")) and IsVisibleGui(b) then
                             local bn = b.Name:lower()
-                            local bt = (b:IsA("TextButton") and b.Text:lower():gsub("%s+", "")) or ""
-                            if (bn == target or bn:find(target) or bt == target or bt:find(target)) and not bn:find("xp") and not bt:find("xp") then
+                            local bt = ButtonText(b):lower()
+                            if (bn == tabKeyword or bn:find(tabKeyword) or bt:find(tabKeyword)) and not bn:find("xp") and not bt:find("xp") then
                                 ClickGuiButton(b)
                                 return true
+                            end
+                        end
+                    end
+                    for _, lbl in ipairs(container:GetDescendants()) do
+                        if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
+                            local txt = lbl.Text:lower()
+                            if txt:find(tabKeyword) and not txt:find("xp") then
+                                local btn = lbl:FindFirstAncestorWhichIsA("GuiButton")
+                                if btn and IsVisibleGui(btn) then
+                                    ClickGuiButton(btn)
+                                    return true
+                                else
+                                    ClickGuiButton(lbl)
+                                    return true
+                                end
                             end
                         end
                     end
                     return false
                 end
 
-                local function ClaimAllVisible()
-                    for _, b in ipairs(passGui:GetDescendants()) do
+                local function ClaimAllVisible(container)
+                    for _, b in ipairs(container:GetDescendants()) do
                         if (b:IsA("TextButton") or b:IsA("ImageButton")) and IsVisibleGui(b) then
                             local bn = b.Name:lower()
                             local bt = (b:IsA("TextButton") and b.Text:lower():gsub("%s+", "")) or ""
                             local full = ButtonText(b):lower()
-                            if (bt == "claim" or bt == "claimall" or bn == "claim" or bn == "claimbutton") and not full:find("in-progress") and not full:find("inprogress") then
+                            if (bt == "claim" or bt == "claimall" or bn == "claim" or bn == "claimbutton") and not full:find("in-progress") and not full:find("inprogress") and not full:find("claimed") and not full:find("buy") and not full:find("unlock") then
                                 ClickGuiButton(b)
                                 task.wait(0.08)
                             end
@@ -1879,30 +1919,30 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                     end
                 end
 
-                ClickMatchingTab("quests")
-                task.wait(0.25)
+                ClickTabByName(passGui, "quest")
+                task.wait(0.3)
 
-                ClickMatchingTab("hourly")
-                task.wait(0.25)
-                ClaimAllVisible()
-                task.wait(0.1)
-
-                ClickMatchingTab("daily")
-                task.wait(0.25)
-                ClaimAllVisible()
-                task.wait(0.1)
-
-                ClickMatchingTab("pass")
-                task.wait(0.2)
-                ClaimAllVisible()
-                task.wait(0.1)
-
-                ClickMatchingTab("crate")
-                task.wait(0.2)
-                ClaimAllVisible()
+                ClickTabByName(passGui, "hourly")
+                task.wait(0.3)
+                ClaimAllVisible(passGui)
                 task.wait(0.15)
 
-                ClosePassGui()
+                ClickTabByName(passGui, "daily")
+                task.wait(0.3)
+                ClaimAllVisible(passGui)
+                task.wait(0.15)
+
+                ClickTabByName(passGui, "pass")
+                task.wait(0.25)
+                ClaimAllVisible(passGui)
+                task.wait(0.15)
+
+                ClickTabByName(passGui, "crate")
+                task.wait(0.25)
+                ClaimAllVisible(passGui)
+                task.wait(0.15)
+
+                ClosePassGui(passGui)
             end)
         end)
     end
