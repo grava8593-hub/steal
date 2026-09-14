@@ -1963,159 +1963,290 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         task.wait(0.25)
     end
 
-    local function CheckAndClaimJurassicPass()
-    pcall(function()
-        local claimRemotes = {
-            rs:FindFirstChild("ClaimPassReward", true),
-            rs:FindFirstChild("ClaimJurassicPass", true),
-            rs:FindFirstChild("ClaimEventReward", true),
-            rs:FindFirstChild("JurassicPassClaim", true)
-        }
-        for _, rem in ipairs(claimRemotes) do
-            if rem and rem:IsA("RemoteFunction") then
-                pcall(function() rem:InvokeServer() end)
-            elseif rem and rem:IsA("RemoteEvent") then
-                pcall(function() rem:FireServer() end)
+        local function CheckAndClaimJurassicPass()
+        if not CanRunAction("ClaimJurassicPassAction", 6.0) then
+            return
+        end
+        pcall(function()
+            local remotes = rs:FindFirstChild("Remotes") or rs
+
+            local passClaimAll = remotes:FindFirstChild("JurassicPassClaimAll")
+            if passClaimAll and passClaimAll:IsA("RemoteFunction") then
+                pcall(function() passClaimAll:InvokeServer() end)
             end
+
+            local passClaim = remotes:FindFirstChild("JurassicPassClaim")
+            if passClaim and passClaim:IsA("RemoteFunction") then
+                for tier = 1, 30 do
+                    task.spawn(function()
+                        pcall(function() passClaim:InvokeServer(tier) end)
+                    end)
+                end
+            end
+
+            local questClaim = remotes:FindFirstChild("JurassicQuestClaim")
+            if questClaim and questClaim:IsA("RemoteFunction") then
+                task.spawn(function()
+                    pcall(function() questClaim:InvokeServer() end)
+                end)
+                for q = 1, 10 do
+                    task.spawn(function()
+                        pcall(function() questClaim:InvokeServer(q) end)
+                    end)
+                end
+            end
+
+            local lootClaim = remotes:FindFirstChild("JurassicLootboxClaim")
+            if lootClaim and lootClaim:IsA("RemoteFunction") then
+                task.spawn(function()
+                    pcall(function() lootClaim:InvokeServer() end)
+                end)
+            end
+        end)
+    end
+
+    task.spawn(function()
+        while IsRunning do
+            pcall(function()
+                if Flags.AutoJurassicPass then
+                    CheckAndClaimJurassicPass()
+                end
+            end)
+            task.wait(2.0)
         end
     end)
-end
 
-local function GetCarryingEgg()
-    local char = player.Character
-    if char then
-        for _, item in ipairs(char:GetChildren()) do
-            if item:IsA("Tool") and string.find(string.lower(item.Name), "egg") then
-                return item
-            end
+    local function GetEventCenterPosition()
+        local anchor = workspace:FindFirstChild("EventCardAnchor", true)
+        if anchor and anchor:IsA("BasePart") then
+            return anchor.Position
         end
-    end
-    local bp = player:FindFirstChild("Backpack")
-    if bp then
-        for _, item in ipairs(bp:GetChildren()) do
-            if item:IsA("Tool") and string.find(string.lower(item.Name), "egg") then
-                return item
-            end
+        local ancient = FindAncientEgg()
+        if ancient and ancient:IsA("BasePart") then
+            return ancient.Position
         end
+        return Vector3.new(0, 0, 0)
     end
-    return nil
-end
 
-local function EquipEgg()
-    local bp = player:FindFirstChild("Backpack")
-    local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-    if bp and hum then
-        for _, item in ipairs(bp:GetChildren()) do
-            if item:IsA("Tool") and string.find(string.lower(item.Name), "egg") then
-                hum:EquipTool(item)
-                task.wait(0.2)
-                break
-            end
-        end
-    end
-end
-
-local function GetEventCenterPosition()
-    local anchor = workspace:FindFirstChild("EventCardAnchor", true)
-    if anchor and anchor:IsA("BasePart") then
-        return anchor.Position
-    end
-    return Vector3.new(0, 0, 0)
-end
-
-local function FindEventEggPrompt()
-    local char = player.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return nil, nil end
-
-    local bestPrompt = nil
-    local bestDist = math.huge
-
-    for _, desc in ipairs(workspace:GetDescendants()) do
-        if desc:IsA("ProximityPrompt") and desc.Enabled then
-            local act = string.lower(desc.ActionText or "")
-            local obj = string.lower(desc.ObjectText or "")
-            local pName = string.lower(desc.Parent and desc.Parent.Name or "")
-            local isEgg = string.find(act, "pick") or string.find(act, "egg") or string.find(act, "take") or string.find(act, "collect") or string.find(obj, "egg") or string.find(pName, "egg")
-            if isEgg then
-                local promptPos = nil
-                if desc.Parent:IsA("BasePart") then
-                    promptPos = desc.Parent.Position
-                elseif desc.Parent:IsA("Attachment") then
-                    promptPos = desc.Parent.WorldPosition
+    local function CheckCarryingEgg()
+        local char = player.Character
+        if char then
+            for _, item in ipairs(char:GetChildren()) do
+                if item:IsA("Tool") then
+                    return true, item
                 end
-                if promptPos then
-                    local d = (hrp.Position - promptPos).Magnitude
-                    if d < bestDist then
-                        bestDist = d
-                        bestPrompt = desc
+                if not item:IsA("Accessory") and not item:IsA("BodyColors") and not item:IsA("Shirt") and not item:IsA("Pants") and not item:IsA("CharacterMesh") then
+                    local iname = item.Name:lower()
+                    if (iname:find("egg") or iname:find("fossil") or iname:find("jurassic")) and not iname:find("root") and not iname:find("torso") and not iname:find("head") and not iname:find("arm") and not iname:find("leg") then
+                        return true, item
                     end
                 end
             end
         end
+        local bp = player:FindFirstChild("Backpack")
+        if bp then
+            for _, item in ipairs(bp:GetChildren()) do
+                if item:IsA("Tool") and string.find(string.lower(item.Name), "egg") then
+                    return true, item
+                end
+            end
+        end
+        local pg = player:FindFirstChild("PlayerGui")
+        if pg then
+            for _, lbl in ipairs(pg:GetDescendants()) do
+                if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
+                    local lt = lbl.Text:lower()
+                    if lt:find("current egg") or lt:find("deposit your") then
+                        return true, nil
+                    end
+                end
+            end
+        end
+        return false, nil
     end
-    return bestPrompt, bestDist
-end
 
-task.spawn(function()
-    while task.wait(0.5) do
-        if Flags.AutoAncientEgg then
-            local char = player.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local function EquipEgg()
+        local bp = player:FindFirstChild("Backpack")
+        local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if bp and hum then
+            for _, item in ipairs(bp:GetChildren()) do
+                if item:IsA("Tool") and string.find(string.lower(item.Name), "egg") then
+                    hum:EquipTool(item)
+                    task.wait(0.2)
+                    break
+                end
+            end
+        end
+    end
 
-            if hrp and hum and hum.Health > 0 then
-                CheckAndClaimJurassicPass()
+    local function IsAncientEggLive()
+        local pg = player:FindFirstChild("PlayerGui")
+        local isUpcoming = false
+        local isLive = false
 
-                local carrying = GetCarryingEgg()
+        if pg then
+            for _, lbl in ipairs(pg:GetDescendants()) do
+                if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
+                    local t = lbl.Text:lower()
+                    if t:find("upcoming") then
+                        isUpcoming = true
+                    end
+                    if t == "live" or (t:find("live") and not t:find("trial") and not t:find("ufo")) then
+                        isLive = true
+                    end
+                    if t:find("bursts in") or t:find("growth") then
+                        isLive = true
+                    end
+                end
+            end
+        end
 
-                if carrying then
-                    EquipEgg()
-                    local centerPos = GetEventCenterPosition()
-                    local distToCenter = (hrp.Position - centerPos).Magnitude
+        if isUpcoming and not isLive then
+            return false
+        end
 
-                    if distToCenter > 6 then
-                        WalkTo(centerPos, 5.0, math.clamp(distToCenter / 12, 3.5, 16.0))
-                    else
-                        for _, desc in ipairs(workspace:GetDescendants()) do
-                            if desc:IsA("ProximityPrompt") and desc.Enabled then
-                                local act = string.lower(desc.ActionText or "")
-                                if string.find(act, "deposit") or string.find(act, "feed") or string.find(act, "place") or string.find(act, "give") or string.find(act, "interact") then
-                                    local pPos = desc.Parent:IsA("BasePart") and desc.Parent.Position or (desc.Parent:IsA("Attachment") and desc.Parent.WorldPosition or nil)
-                                    if pPos and (hrp.Position - pPos).Magnitude <= (desc.MaxActivationDistance + 4) then
-                                        pcall(function()
-                                            fireproximityprompt(desc, 0)
-                                        end)
-                                    end
-                                end
+        if isLive then
+            return true
+        end
+
+        for _, b in ipairs(workspace:GetDescendants()) do
+            if b:IsA("BillboardGui") and b.Enabled then
+                for _, lbl in ipairs(b:GetDescendants()) do
+                    if lbl:IsA("TextLabel") and lbl.Visible then
+                        local t = lbl.Text:lower()
+                        if t:find("bursts in") or t:find("growth") or (t:find("tier") and t:find("/")) then
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+
+        return false
+    end
+
+    local function FindEventEggTarget()
+        local root = GetRoot()
+        if not root then return nil, nil end
+        local centerPos = GetEventCenterPosition()
+
+        local bestObj = nil
+        local bestPrompt = nil
+        local bestDist = 9999
+
+        for _, desc in ipairs(workspace:GetDescendants()) do
+            if desc:IsA("ProximityPrompt") and desc.Enabled then
+                local p = desc.Parent and (desc.Parent:IsA("BasePart") and desc.Parent or desc.Parent:FindFirstAncestorWhichIsA("BasePart"))
+                if p and not p:IsDescendantOf(player.Character) and (p.Position - centerPos).Magnitude > 15 then
+                    local act = (desc.ActionText .. " " .. desc.ObjectText .. " " .. p.Name):lower()
+                    if act:find("pick") or act:find("egg") or act:find("take") or act:find("collect") or act:find("interact") then
+                        local d = FlatDist(root.Position, p.Position)
+                        if d < bestDist then
+                            bestDist = d
+                            bestObj = p
+                            bestPrompt = desc
+                        end
+                    end
+                end
+            end
+        end
+
+        if not bestObj then
+            for _, part in ipairs(workspace:GetDescendants()) do
+                if part:IsA("BasePart") and not part:IsDescendantOf(player.Character) and not IsRealScrap(part) then
+                    local n = (part.Name .. " " .. part.Parent.Name):lower()
+                    if (n:find("egg") or n:find("fossil") or n:find("shell")) and not n:find("coop") and not n:find("nest") and not n:find("feeder") and not n:find("incubator") and not n:find("shop") then
+                        if (part.Position - centerPos).Magnitude > 15 then
+                            local d = FlatDist(root.Position, part.Position)
+                            if d < bestDist then
+                                bestDist = d
+                                bestObj = part
+                                bestPrompt = part:FindFirstChildOfClass("ProximityPrompt") or part:FindFirstChildWhichIsA("ProximityPrompt", true)
                             end
                         end
-                        task.wait(0.5)
-                    end
-                else
-                    local prompt, dist = FindEventEggPrompt()
-
-                    if prompt then
-                        local targetPos = prompt.Parent:IsA("BasePart") and prompt.Parent.Position or prompt.Parent.WorldPosition
-                        local travelTime = math.clamp(dist / 12, 3.5, 18.0)
-
-                        WalkTo(targetPos, math.min(prompt.MaxActivationDistance - 1, 4.0), travelTime)
-
-                        local curDist = (hrp.Position - targetPos).Magnitude
-                        if curDist <= (prompt.MaxActivationDistance + 3) then
-                            pcall(function()
-                                fireproximityprompt(prompt, 0)
-                            end)
-                            task.wait(0.3)
-                        end
-                    else
-                        task.wait(0.5)
                     end
                 end
             end
         end
+
+        return bestObj, bestPrompt
     end
-end)
+
+    task.spawn(function()
+        while IsRunning do
+            pcall(function()
+                if Flags.AutoAncientEgg then
+                    local char = player.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+                    if hrp and hum and hum.Health > 0 then
+                        if not IsAncientEggLive() then
+                            task.wait(1.0)
+                            return
+                        end
+
+                        local isCarrying, carriedTool = CheckCarryingEgg()
+
+                        if isCarrying then
+                            EquipEgg()
+                            local centerPos = GetEventCenterPosition()
+                            local ancientEgg = FindAncientEgg()
+                            local targetPos = (ancientEgg and ancientEgg:IsA("BasePart") and ancientEgg.Position) or centerPos
+
+                            if FlatDist(hrp.Position, targetPos) > 6 then
+                                WalkTo(targetPos, 4.0, 4.0)
+                            end
+
+                            if FlatDist(hrp.Position, targetPos) <= 9 then
+                                if ancientEgg then
+                                    FastTouch(ancientEgg)
+                                end
+                                TriggerNearbyPrompt("deposit", 16)
+                                TriggerNearbyPrompt("feed", 16)
+                                TriggerNearbyPrompt("give", 16)
+                                TriggerNearbyPrompt("place", 16)
+                                TriggerNearbyPrompt("egg", 16)
+                                TriggerNearbyPrompt("interact", 16)
+                                TriggerNearbyPrompt("growth", 16)
+                                TriggerAllPromptsAround(16)
+                                TryClickGuiAction("DepositEgg", {"deposit", "feed", "place"}, 0.3)
+                                task.wait(0.3)
+                            end
+                        else
+                            TryClickGuiAction("PickUpEgg", {"pick up", "pickup"}, 0.3)
+                            local targetPart, prompt = FindEventEggTarget()
+
+                            if targetPart then
+                                local targetPos = targetPart.Position
+                                if FlatDist(hrp.Position, targetPos) > 3 then
+                                    WalkTo(targetPos, 3.5, 2.5)
+                                end
+
+                                if FlatDist(hrp.Position, targetPos) <= 6 then
+                                    FastTouch(targetPart)
+                                    if prompt then
+                                        TriggerPrompt(prompt)
+                                    end
+                                    TriggerNearbyPrompt("pick", 16)
+                                    TriggerNearbyPrompt("egg", 16)
+                                    TriggerNearbyPrompt("take", 16)
+                                    TriggerNearbyPrompt("collect", 16)
+                                    TriggerNearbyPrompt("interact", 16)
+                                    TriggerAllPromptsAround(16)
+                                    TryClickGuiAction("PickUpEgg", {"pick up", "pickup"}, 0.3)
+                                    task.wait(0.3)
+                                end
+                            else
+                                task.wait(0.5)
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(0.15)
+        end
+    end)
 
     local Gui = Instance.new("ScreenGui", CoreGui)
     Gui.Name = "ERDEVA_HUB"
