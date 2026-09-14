@@ -1592,7 +1592,6 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     local cachedEventActive = false
     local lastEventCheckTime = 0
     local wasAncientEggActive = false
-    local isHoldingEventEgg = false
     local CollectedEggBlacklist = {}
 
     local function IsForbiddenHot(str)
@@ -1611,28 +1610,16 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end
 
     local function IsHoldingEgg()
-        if isHoldingEventEgg then
-            return true
-        end
         local char = player.Character
         if char then
             for _, item in ipairs(char:GetChildren()) do
                 if item:IsA("Tool") then
                     return true
                 end
-                if not item:IsA("Accessory") and not item:IsA("BodyColors") and not item:IsA("Shirt") and not item:IsA("Pants") then
+                if not item:IsA("Accessory") and not item:IsA("BodyColors") and not item:IsA("Shirt") and not item:IsA("Pants") and not item:IsA("CharacterMesh") then
                     local iname = item.Name:lower()
-                    if iname:find("egg") or iname:find("carried") or iname:find("hold") or iname:find("fossil") or iname:find("jurassic") then
+                    if (iname:find("egg") or iname:find("fossil") or iname:find("jurassic")) and not iname:find("root") and not iname:find("torso") and not iname:find("head") and not iname:find("arm") and not iname:find("leg") then
                         return true
-                    end
-                end
-            end
-            for _, bg in ipairs(char:GetDescendants()) do
-                if bg:IsA("BillboardGui") and bg.Enabled then
-                    for _, img in ipairs(bg:GetDescendants()) do
-                        if img:IsA("ImageLabel") and img.Visible then
-                            return true
-                        end
                     end
                 end
             end
@@ -1642,7 +1629,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             for _, lbl in ipairs(pg:GetDescendants()) do
                 if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
                     local lt = lbl.Text:lower()
-                    if lt:find("current egg") or lt:find("deposit your") or lt:find("holding egg") then
+                    if lt:find("current egg") or lt:find("deposit your") then
                         return true
                     end
                 end
@@ -1654,6 +1641,13 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     local function FindAncientEgg()
         if cachedAncientEgg and cachedAncientEgg.Parent and (tick() - lastAncientEggCheck < 5) then
             return cachedAncientEgg
+        end
+
+        local anchor = workspace:FindFirstChild("EventCardAnchor")
+        if anchor and anchor:IsA("BasePart") then
+            cachedAncientEgg = anchor
+            lastAncientEggCheck = tick()
+            return anchor
         end
 
         for _, b in ipairs(workspace:GetDescendants()) do
@@ -1680,18 +1674,15 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             end
         end
 
-        local arenaCenter = GetArenaCenter()
-        if arenaCenter then
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if (obj:IsA("BasePart") or obj:IsA("Model")) and not obj:IsDescendantOf(player.Character) and not IsRealScrap(obj) then
-                    local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
-                    if p and (p.Position - arenaCenter).Magnitude <= 28 then
-                        local n = obj.Name:lower()
-                        if not IsForbiddenHot(n) and not n:find("wall") and not n:find("fence") and not n:find("floor") and not n:find("ground") then
-                            cachedAncientEgg = p
-                            lastAncientEggCheck = tick()
-                            return p
-                        end
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if (obj:IsA("BasePart") or obj:IsA("Model")) and not obj:IsDescendantOf(player.Character) and not IsRealScrap(obj) then
+                local p = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
+                if p and p.Position.Magnitude <= 20 then
+                    local n = obj.Name:lower()
+                    if not IsForbiddenHot(n) and not n:find("wall") and not n:find("fence") and not n:find("floor") and not n:find("ground") then
+                        cachedAncientEgg = p
+                        lastAncientEggCheck = tick()
+                        return p
                     end
                 end
             end
@@ -1791,9 +1782,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         if not root then
             return nil
         end
-        local arenaCenter = GetArenaCenter()
-        local ancientEgg = FindAncientEgg()
-        local centerPos = (ancientEgg and ancientEgg.Position) or arenaCenter
+        local centerPos = Vector3.new(0, 0, 0)
         local best, bestDist = nil, 9999
 
         local candidateContainers = {
@@ -1828,7 +1817,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                 return
             end
 
-            if centerPos and (part.Position - centerPos).Magnitude <= 16 then
+            if (part.Position - centerPos).Magnitude <= 18 then
                 return
             end
 
@@ -1873,8 +1862,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                     if p and not p:IsDescendantOf(player.Character) and not CollectedEggBlacklist[p] then
                         local pt = (prompt.ActionText .. " " .. prompt.ObjectText .. " " .. prompt.Name .. " " .. p.Name .. " " .. p.Parent.Name):lower()
                         if not IsForbiddenHot(pt) and not pt:find("ufo") and not pt:find("shop") and not pt:find("coop") and not pt:find("incubator") then
-                            local dCenter = centerPos and (p.Position - centerPos).Magnitude or 999
-                            if dCenter > 16 then
+                            if (p.Position - centerPos).Magnitude > 18 then
                                 local d = FlatDist(root.Position, p.Position)
                                 if d < 1500 and d < bestDist then
                                     best = p
@@ -1949,14 +1937,12 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end
 
     local function DepositEggAtCenter(ancientEgg, arenaPos)
-        local targetPos = (ancientEgg and ancientEgg:IsA("BasePart") and ancientEgg.Position) or arenaPos or GetArenaCenter()
-        if not targetPos then return end
-
+        local targetPos = (ancientEgg and ancientEgg:IsA("BasePart") and ancientEgg.Position) or arenaPos or Vector3.new(0, 0, 0)
         local root = GetRoot()
         local dist = root and FlatDist(root.Position, targetPos) or 50
-        local walkTimeout = math.clamp(dist / 12, 3.5, 16.0)
+        local walkTimeout = math.clamp(dist / 12, 3.5, 18.0)
 
-        WalkTo(targetPos, walkTimeout, 6.0)
+        WalkTo(targetPos, walkTimeout, 5.5)
 
         local hum = GetHumanoid()
         if hum then
@@ -1968,12 +1954,12 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
             InteractWithTargetPrompt(ancientEgg)
         end
 
+        TriggerNearbyPrompt("deposit", 22)
+        TriggerNearbyPrompt("egg", 22)
+        TriggerNearbyPrompt("ancient", 22)
+        TriggerNearbyPrompt("growth", 22)
         TriggerAllPromptsAround(22)
-        task.wait(0.3)
-
-        if not IsHoldingEgg() then
-            isHoldingEventEgg = false
-        end
+        task.wait(0.25)
     end
 
     local function CheckAndClaimJurassicPass()
@@ -2166,7 +2152,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                     if isActive then
                         wasAncientEggActive = true
                         local ancientEgg = FindAncientEgg()
-                        local arenaPos = (ancientEgg and ancientEgg:IsA("BasePart") and ancientEgg.Position) or GetArenaCenter()
+                        local arenaPos = Vector3.new(0, 0, 0)
 
                         if IsHoldingEgg() then
                             DepositEggAtCenter(ancientEgg, arenaPos)
@@ -2175,24 +2161,27 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                             if egg then
                                 local root = GetRoot()
                                 local dist = root and FlatDist(root.Position, egg.Position) or 30
-                                local walkTimeout = math.clamp(dist / 12, 3.0, 16.0)
+                                local walkTimeout = math.clamp(dist / 12, 3.5, 18.0)
 
                                 FastTouch(egg)
                                 WalkTo(egg.Position, walkTimeout, 3.0)
                                 FastTouch(egg)
                                 InteractWithTargetPrompt(egg)
+                                TriggerNearbyPrompt("pick", 16)
+                                TriggerNearbyPrompt("egg", 16)
+                                TriggerNearbyPrompt("take", 16)
+                                TriggerNearbyPrompt("collect", 16)
                                 TriggerAllPromptsAround(16)
                                 CollectedEggBlacklist[egg] = tick()
-                                isHoldingEventEgg = true
                                 task.wait(0.2)
 
                                 DepositEggAtCenter(ancientEgg, arenaPos)
                             else
                                 local root = GetRoot()
-                                if root and arenaPos then
+                                if root then
                                     local currentDist = FlatDist(root.Position, arenaPos)
-                                    if currentDist < 25 then
-                                        WalkTo(arenaPos + Vector3.new(55, 0, 0), 4.5, 3.5)
+                                    if currentDist < 30 then
+                                        WalkTo(Vector3.new(-105, 3, -35), 6.0, 4.0)
                                     end
                                 end
                                 task.wait(0.2)
@@ -2202,7 +2191,6 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                         if wasAncientEggActive then
                             wasAncientEggActive = false
                             cachedAncientEgg = nil
-                            isHoldingEventEgg = false
                             table.clear(CollectedEggBlacklist)
                             DoRecycleAtBase()
                         end
@@ -2940,14 +2928,14 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     AddRarityChip(r4, "Secret", "SellSecret", Color3.fromRGB(255, 105, 180), true)
 
     AddToggle(PlotPage, "Auto Rebirth", "AutoRebirth", true)
-    AddButton(PlotPage, "[LOCK] Set Recycler Pad", function(btn)
+    AddButton(PlotPage, "[LOCK] Set Base", function(btn)
         local root = GetRoot()
         if root then
             LOCKED_RECYCLER_POS = root.Position
-            btn.Text = "Recycler Pad Locked"
-            Notify("ERDEVA HUB", "Recycler Pad Locked", 3.0)
+            btn.Text = "Base Locked"
+            Notify("ERDEVA HUB", "Base Locked", 3.0)
             task.delay(2.5, function()
-                btn.Text = "[LOCK] Set Recycler Pad"
+                btn.Text = "[LOCK] Set Base"
             end)
         end
     end)
@@ -2968,9 +2956,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     AddToggle(EventsPage, "Auto UFO", "AutoUFO")
     AddToggle(EventsPage, "Auto Ancient Egg", "AutoAncientEgg")
     AddToggle(EventsPage, "Auto Jurassic Pass", "AutoJurassicPass")
-    AddBadge(EventsPage, "Auto Golden Goose", "COMING SOON")
-    AddBadge(EventsPage, "Auto Chicken Boss", "COMING SOON")
-    AddBadge(EventsPage, "Auto Admin Abuse", "COMING SOON")
+    
 
     local LiveCarriedLabel = nil
     local LiveTrialLabel = nil
