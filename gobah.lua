@@ -402,7 +402,7 @@ LaunchKeyUI = function(isExpiredTrial)
     local TitleLabel = Instance.new("TextLabel", Header)
     TitleLabel.Size = UDim2.new(1, 0, 1, 0)
     TitleLabel.BackgroundTransparency = 1
-    TitleLabel.Text = isExpiredTrial and "TRIAL EXPIRED" or "ERDEVA HUB v2.6"
+    TitleLabel.Text = isExpiredTrial and "TRIAL EXPIRED" or "ERDEVA HUB v2.7"
     TitleLabel.TextColor3 = C.Txt
     TitleLabel.TextSize = 13
     TitleLabel.Font = Enum.Font.GothamBold
@@ -1823,58 +1823,6 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         end)
     end
 
-            local questClaim = rem:FindFirstChild("JurassicQuestClaim")
-            if questClaim and questClaim:IsA("RemoteFunction") then
-                task.spawn(function()
-                    pcall(function()
-                        questClaim:InvokeServer()
-                    end)
-                end)
-                for q = 1, 10 do
-                    task.spawn(function()
-                        pcall(function()
-                            questClaim:InvokeServer(q)
-                        end)
-                    end)
-                end
-            end
-
-            local lootClaim = rem:FindFirstChild("JurassicLootboxClaim")
-            if lootClaim and lootClaim:IsA("RemoteFunction") then
-                task.spawn(function()
-                    pcall(function()
-                        lootClaim:InvokeServer()
-                    end)
-                end)
-            end
-
-            local passGeneral = rem:FindFirstChild("PassClaim")
-            if passGeneral and passGeneral:IsA("RemoteFunction") then
-                task.spawn(function()
-                    pcall(function()
-                        passGeneral:InvokeServer()
-                    end)
-                end)
-            end
-
-            local missionClaim = rem:FindFirstChild("MissionClaim")
-            if missionClaim and missionClaim:IsA("RemoteFunction") then
-                task.spawn(function()
-                    pcall(function()
-                        missionClaim:InvokeServer()
-                    end)
-                end)
-                for m = 1, 10 do
-                    task.spawn(function()
-                        pcall(function()
-                            missionClaim:InvokeServer(m)
-                        end)
-                    end)
-                end
-            end
-        end)
-    end
-
     task.spawn(function()
         while IsRunning do
             pcall(function()
@@ -1977,7 +1925,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     Title.Size = UDim2.new(1, HeaderLogo and -95 or -75, 1, 0)
     Title.Position = UDim2.fromOffset(HeaderLogo and 38 or 12, 0)
     Title.BackgroundTransparency = 1
-    Title.Text = isTrialMode and "ERDEVA HUB [TRIAL 1H]" or "ERDEVA HUB v2.6"
+    Title.Text = isTrialMode and "ERDEVA HUB [TRIAL 1H]" or "ERDEVA HUB v2.7"
     Title.TextColor3 = C.Txt
     Title.TextSize = 13
     Title.Font = Enum.Font.GothamBold
@@ -2724,7 +2672,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end
 
     AddInfo("User", player.Name, false, false)
-    AddInfo("Hub Version", "v2.6", false, false)
+    AddInfo("Hub Version", "v2.7", false, false)
     AddInfo("Plates Grabbed", "0 / 20", true, false)
     if isTrialMode then
         AddInfo("Trial Remaining", "Calculating...", false, true)
