@@ -1123,6 +1123,39 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         TriggerNearbyPrompt("incubator", 18)
         TriggerNearbyPrompt("claim", 18)
         TryClickGuiAction("TakeEggGui", {"claim", "collect egg", "take egg"}, 1.5)
+
+        task.spawn(function()
+            local pg = player:FindFirstChild("PlayerGui")
+            if not pg then return end
+            local inc = pg:FindFirstChild("Incubator") or pg:FindFirstChild("incubator")
+            if not inc then return end
+
+            local t0 = tick()
+            while tick() - t0 < 1.2 do
+                if inc.Enabled or IsVisibleGui(inc) then
+                    for _, b in ipairs(inc:GetDescendants()) do
+                        if (b:IsA("TextButton") or b:IsA("ImageButton")) and IsVisibleGui(b) then
+                            local t = ButtonText(b)
+                            if t:find("claim") or t:find("collect") or t:find("take") then
+                                ClickGuiButton(b)
+                            end
+                        end
+                    end
+                    task.wait(0.1)
+                    for _, b in ipairs(inc:GetDescendants()) do
+                        if (b:IsA("TextButton") or b:IsA("ImageButton")) and IsVisibleGui(b) then
+                            local t = ButtonText(b):gsub("%s+", "")
+                            local n = b.Name:lower()
+                            if t == "x" or n == "x" or t == "close" or n == "close" or n:find("close") or t:find("close") then
+                                ClickGuiButton(b)
+                                return
+                            end
+                        end
+                    end
+                end
+                task.wait(0.15)
+            end
+        end)
     end
 
     local function RunEventCheck()
