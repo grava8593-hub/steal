@@ -2123,13 +2123,13 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     end)
     
     local function GetEventCenterPosition()
+        local ancient = workspace:FindFirstChild("AncientEgg")
+        if ancient and ancient:IsA("BasePart") then
+            return ancient.Position
+        end
         local anchor = workspace:FindFirstChild("EventCardAnchor", true)
         if anchor and anchor:IsA("BasePart") then
             return anchor.Position
-        end
-        local ancient = FindAncientEgg()
-        if ancient and ancient:IsA("BasePart") then
-            return ancient.Position
         end
         return Vector3.new(0, 0, 0)
     end
@@ -2143,7 +2143,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                 end
                 if not item:IsA("Accessory") and not item:IsA("BodyColors") and not item:IsA("Shirt") and not item:IsA("Pants") and not item:IsA("CharacterMesh") then
                     local iname = item.Name:lower()
-                    if (iname:find("egg") or iname:find("fossil") or iname:find("jurassic")) and not iname:find("root") and not iname:find("torso") and not iname:find("head") and not iname:find("arm") and not iname:find("leg") then
+                    if (iname:find("egg") or iname:find("fossil") or iname:find("jurassic") or iname:find("loose")) and not iname:find("root") and not iname:find("torso") and not iname:find("head") and not iname:find("arm") and not iname:find("leg") then
                         return true, item
                     end
                 end
@@ -2188,20 +2188,33 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     local function FindGroundEgg()
         local root = GetRoot()
         if not root then return nil, nil end
-        local centerPos = GetEventCenterPosition()
         local bestPart, bestPrompt, bestDist = nil, nil, 9999
 
-        for _, desc in ipairs(workspace:GetDescendants()) do
-            if desc:IsA("ProximityPrompt") and desc.Enabled then
-                local p = desc.Parent and (desc.Parent:IsA("BasePart") and desc.Parent or desc.Parent:FindFirstAncestorWhichIsA("BasePart"))
-                if p and not p:IsDescendantOf(player.Character) and (p.Position - centerPos).Magnitude > 12 then
-                    local act = (desc.ActionText .. " " .. desc.ObjectText .. " " .. p.Name .. " " .. p.Parent.Name):lower()
-                    if act:find("pick") or act:find("egg") or act:find("take") or act:find("collect") or act:find("interact") then
-                        local d = FlatDist(root.Position, p.Position)
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) and obj.Name ~= "AncientEgg" then
+                local n = obj.Name:lower()
+                local pn = obj.Parent and obj.Parent.Name:lower() or ""
+                local ppn = (obj.Parent and obj.Parent.Parent and obj.Parent.Parent.Name:lower()) or ""
+
+                local isForbidden = pn:find("coop") or ppn:find("coop") or
+                                    pn:find("recycler") or ppn:find("recycler") or
+                                    pn:find("incubator") or ppn:find("incubator") or
+                                    pn:find("shop") or ppn:find("feeder")
+
+                if not isForbidden then
+                    local isEggPart = n:find("egg_circle") or n:find("ascensionegg") or
+                                      n:find("colossusegg") or n:find("trickegg") or
+                                      pn == "loose" or ppn == "pitscrap"
+
+                    if isEggPart then
+                        local d = FlatDist(root.Position, obj.Position)
                         if d < bestDist then
+                            local prompt = obj:FindFirstChildOfClass("ProximityPrompt") or
+                                           (obj.Parent and obj.Parent:FindFirstChildOfClass("ProximityPrompt")) or
+                                           (obj.Parent and obj.Parent.Parent and obj.Parent.Parent:FindFirstChildWhichIsA("ProximityPrompt", true))
                             bestDist = d
-                            bestPart = p
-                            bestPrompt = desc
+                            bestPart = obj
+                            bestPrompt = prompt
                         end
                     end
                 end
@@ -2209,16 +2222,25 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         end
 
         if not bestPart then
-            for _, part in ipairs(workspace:GetDescendants()) do
-                if part:IsA("BasePart") and not part:IsDescendantOf(player.Character) and not IsRealScrap(part) then
-                    local n = (part.Name .. " " .. part.Parent.Name):lower()
-                    if (n:find("egg") or n:find("fossil") or n:find("shell")) and not n:find("nest") and not n:find("incubator") and not n:find("coop") and not n:find("feeder") and not n:find("shop") then
-                        if (part.Position - centerPos).Magnitude > 12 then
+            for _, p in ipairs(workspace:GetDescendants()) do
+                if p:IsA("ProximityPrompt") and p.Enabled then
+                    local parent = p.Parent
+                    local pn = parent and parent.Name:lower() or ""
+                    local ppn = (parent and parent.Parent and parent.Parent.Name:lower()) or ""
+
+                    local isForbidden = pn:find("coop") or ppn:find("coop") or
+                                        pn:find("recycler") or ppn:find("recycler") or
+                                        pn:find("incubator") or ppn:find("incubator") or
+                                        pn:find("shop") or ppn:find("feeder")
+
+                    if not isForbidden and (pn == "loose" or pn:find("egg") or ppn:find("pitscrap")) then
+                        local part = parent:IsA("BasePart") and parent or parent:FindFirstAncestorWhichIsA("BasePart")
+                        if part and not part:IsDescendantOf(player.Character) and part.Name ~= "AncientEgg" then
                             local d = FlatDist(root.Position, part.Position)
                             if d < bestDist then
                                 bestDist = d
                                 bestPart = part
-                                bestPrompt = part:FindFirstChildOfClass("ProximityPrompt") or part:FindFirstChildWhichIsA("ProximityPrompt", true)
+                                bestPrompt = p
                             end
                         end
                     end
@@ -2238,30 +2260,34 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                     local hum = char and char:FindFirstChildOfClass("Humanoid")
 
                     if hrp and hum and hum.Health > 0 then
+                        local ancientEgg = workspace:FindFirstChild("AncientEgg")
+
+                        if not ancientEgg then
+                            task.wait(1.0)
+                            return
+                        end
+
                         local isCarrying = IsCarryingEgg()
 
                         if isCarrying then
                             EquipEgg()
-                            local centerPos = GetEventCenterPosition()
-                            local ancientEgg = FindAncientEgg()
-                            local targetPos = (ancientEgg and ancientEgg:IsA("BasePart") and ancientEgg.Position) or centerPos
+                            local targetPos = ancientEgg.Position
 
-                            if FlatDist(hrp.Position, targetPos) > 6 then
-                                WalkTo(targetPos, 4.0, 4.0)
+                            if FlatDist(hrp.Position, targetPos) > 5 then
+                                WalkTo(targetPos, 4.0, 3.5)
                             end
 
-                            if FlatDist(hrp.Position, targetPos) <= 9 then
-                                if ancientEgg then
-                                    FastTouch(ancientEgg)
+                            if FlatDist(hrp.Position, targetPos) <= 8 then
+                                FastTouch(ancientEgg)
+                                local depPrompt = ancientEgg:FindFirstChildOfClass("ProximityPrompt") or
+                                                  ancientEgg:FindFirstChildWhichIsA("ProximityPrompt", true)
+                                if depPrompt then
+                                    TriggerPrompt(depPrompt)
                                 end
                                 TriggerNearbyPrompt("deposit", 16)
                                 TriggerNearbyPrompt("feed", 16)
-                                TriggerNearbyPrompt("give", 16)
                                 TriggerNearbyPrompt("place", 16)
-                                TriggerNearbyPrompt("egg", 16)
-                                TriggerNearbyPrompt("interact", 16)
-                                TriggerNearbyPrompt("growth", 16)
-                                TriggerAllPromptsAround(16)
+                                TriggerNearbyPrompt("give", 16)
                                 TryClickGuiAction("DepositBtn", {"deposit", "feed", "place"}, 0.3)
                                 task.wait(0.3)
                             end
@@ -2271,22 +2297,23 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                             if targetPart then
                                 local targetPos = targetPart.Position
                                 if FlatDist(hrp.Position, targetPos) > 3 then
-                                    WalkTo(targetPos, 3.5, 2.5)
+                                    WalkTo(targetPos, 3.5, 2.0)
                                 end
 
-                                if FlatDist(hrp.Position, targetPos) <= 7 then
+                                if FlatDist(hrp.Position, targetPos) <= 6 then
                                     FastTouch(targetPart)
                                     if prompt then
                                         TriggerPrompt(prompt)
                                     end
+                                    local pPrompt = targetPart.Parent and targetPart.Parent:FindFirstChildOfClass("ProximityPrompt")
+                                    if pPrompt then
+                                        TriggerPrompt(pPrompt)
+                                    end
                                     TriggerNearbyPrompt("pick", 16)
-                                    TriggerNearbyPrompt("egg", 16)
                                     TriggerNearbyPrompt("take", 16)
                                     TriggerNearbyPrompt("collect", 16)
-                                    TriggerNearbyPrompt("interact", 16)
-                                    TriggerAllPromptsAround(16)
                                     TryClickGuiAction("PickUpBtn", {"pick up", "pickup"}, 0.3)
-                                    task.wait(0.3)
+                                    task.wait(0.25)
                                 end
                             else
                                 task.wait(0.5)
