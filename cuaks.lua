@@ -2122,6 +2122,9 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         end
     end)
     
+        local wasEventActive = false
+    local isDeliveringEgg = false
+
     local function GetEventCenterPosition()
         local ancient = workspace:FindFirstChild("AncientEgg")
         if ancient and ancient:IsA("BasePart") then
@@ -2137,23 +2140,29 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
     local function IsCarryingEgg()
         local char = player.Character
         if char then
-            for _, item in ipairs(char:GetChildren()) do
-                if item:IsA("Tool") then
-                    return true, item
-                end
-                if not item:IsA("Accessory") and not item:IsA("BodyColors") and not item:IsA("Shirt") and not item:IsA("Pants") and not item:IsA("CharacterMesh") then
+            if char:FindFirstChildOfClass("Tool") then
+                return true
+            end
+            for _, item in ipairs(char:GetDescendants()) do
+                if item:IsA("BasePart") or item:IsA("Model") then
                     local iname = item.Name:lower()
-                    if (iname:find("egg") or iname:find("fossil") or iname:find("jurassic") or iname:find("loose")) and not iname:find("root") and not iname:find("torso") and not iname:find("head") and not iname:find("arm") and not iname:find("leg") then
-                        return true, item
+                    if (iname:find("egg") or iname:find("colossus") or iname:find("ascension") or iname:find("trick") or iname:find("fossil") or iname:find("loose")) then
+                        if not iname:find("root") and not iname:find("torso") and not iname:find("head") and not iname:find("arm") and not iname:find("leg") and not iname:find("humanoid") then
+                            return true
+                        end
                     end
                 end
             end
         end
         local bp = player:FindFirstChild("Backpack")
         if bp then
+            if bp:FindFirstChildOfClass("Tool") then
+                return true
+            end
             for _, item in ipairs(bp:GetChildren()) do
-                if item:IsA("Tool") and string.find(string.lower(item.Name), "egg") then
-                    return true, item
+                local iname = item.Name:lower()
+                if iname:find("egg") or iname:find("colossus") or iname:find("ascension") or iname:find("trick") or iname:find("loose") then
+                    return true
                 end
             end
         end
@@ -2163,12 +2172,12 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                 if lbl:IsA("TextLabel") and IsVisibleGui(lbl) then
                     local lt = lbl.Text:lower()
                     if lt:find("current egg") or lt:find("deposit your") then
-                        return true, nil
+                        return true
                     end
                 end
             end
         end
-        return false, nil
+        return false
     end
 
     local function EquipEgg()
@@ -2176,18 +2185,32 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
         local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
         if bp and hum then
             for _, item in ipairs(bp:GetChildren()) do
-                if item:IsA("Tool") and string.find(string.lower(item.Name), "egg") then
+                if item:IsA("Tool") then
                     hum:EquipTool(item)
-                    task.wait(0.2)
+                    task.wait(0.15)
                     break
                 end
             end
         end
     end
 
+    local function ReturnToBase()
+        local basePos = LOCKED_RECYCLER_POS
+        if not basePos then
+            local pad = FindBasePad({"recycler", "recycle", "deposit", "coop", "feeder"})
+            if pad and pad.part then
+                basePos = pad.part.Position
+            end
+        end
+        if basePos then
+            WalkTo(basePos, 14.0, 3.5)
+        end
+    end
+
     local function FindGroundEgg()
         local root = GetRoot()
         if not root then return nil, nil end
+        local centerPos = GetEventCenterPosition()
         local bestPart, bestPrompt, bestDist = nil, nil, 9999
 
         for _, obj in ipairs(workspace:GetDescendants()) do
@@ -2263,21 +2286,35 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                         local ancientEgg = workspace:FindFirstChild("AncientEgg")
 
                         if not ancientEgg then
+                            if wasEventActive then
+                                wasEventActive = false
+                                isDeliveringEgg = false
+                                ReturnToBase()
+                            end
                             task.wait(1.0)
                             return
                         end
 
-                        local isCarrying = IsCarryingEgg()
+                        wasEventActive = true
 
-                        if isCarrying then
+                        if not isDeliveringEgg then
+                            if IsCarryingEgg() then
+                                isDeliveringEgg = true
+                            end
+                        end
+
+                        if isDeliveringEgg then
                             EquipEgg()
                             local targetPos = ancientEgg.Position
+                            local distToAncient = FlatDist(hrp.Position, targetPos)
+                            local dynamicTimeout = math.clamp(distToAncient / 9, 4.0, 16.0)
 
-                            if FlatDist(hrp.Position, targetPos) > 5 then
-                                WalkTo(targetPos, 4.0, 3.5)
+                            if distToAncient > 3 then
+                                WalkTo(targetPos, dynamicTimeout, 2.5)
                             end
 
-                            if FlatDist(hrp.Position, targetPos) <= 8 then
+                            distToAncient = FlatDist(hrp.Position, targetPos)
+                            if distToAncient <= 7 then
                                 FastTouch(ancientEgg)
                                 local depPrompt = ancientEgg:FindFirstChildOfClass("ProximityPrompt") or
                                                   ancientEgg:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -2288,19 +2325,29 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                                 TriggerNearbyPrompt("feed", 16)
                                 TriggerNearbyPrompt("place", 16)
                                 TriggerNearbyPrompt("give", 16)
+                                TriggerNearbyPrompt("burst", 16)
+                                TriggerNearbyPrompt("growth", 16)
                                 TryClickGuiAction("DepositBtn", {"deposit", "feed", "place"}, 0.3)
                                 task.wait(0.3)
+
+                                if not IsCarryingEgg() then
+                                    isDeliveringEgg = false
+                                end
                             end
                         else
                             local targetPart, prompt = FindGroundEgg()
 
                             if targetPart then
                                 local targetPos = targetPart.Position
-                                if FlatDist(hrp.Position, targetPos) > 3 then
-                                    WalkTo(targetPos, 3.5, 2.0)
+                                local distToEgg = FlatDist(hrp.Position, targetPos)
+                                local dynamicTimeout = math.clamp(distToEgg / 9, 3.5, 14.0)
+
+                                if distToEgg > 2.5 then
+                                    WalkTo(targetPos, dynamicTimeout, 2.0)
                                 end
 
-                                if FlatDist(hrp.Position, targetPos) <= 6 then
+                                distToEgg = FlatDist(hrp.Position, targetPos)
+                                if distToEgg <= 6 then
                                     FastTouch(targetPart)
                                     if prompt then
                                         TriggerPrompt(prompt)
@@ -2313,7 +2360,11 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                                     TriggerNearbyPrompt("take", 16)
                                     TriggerNearbyPrompt("collect", 16)
                                     TryClickGuiAction("PickUpBtn", {"pick up", "pickup"}, 0.3)
-                                    task.wait(0.25)
+                                    task.wait(0.2)
+
+                                    if IsCarryingEgg() then
+                                        isDeliveringEgg = true
+                                    end
                                 end
                             else
                                 task.wait(0.5)
@@ -2322,7 +2373,7 @@ StartMainScript = function(isTrialMode, trialTimeLeft)
                     end
                 end
             end)
-            task.wait(0.15)
+            task.wait(0.12)
         end
     end)
 
